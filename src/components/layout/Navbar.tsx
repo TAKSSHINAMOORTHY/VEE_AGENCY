@@ -17,9 +17,8 @@ export function Navbar() {
   const location = useLocation();
 
   useEffect(() => {
-    if (!mobileOpen) return;
     setMobileOpen(false);
-  }, [location.pathname, mobileOpen]);
+  }, [location.pathname]);
 
   return (
     <nav className="sticky top-0 z-50 bg-card border-b border-border shadow-sm">

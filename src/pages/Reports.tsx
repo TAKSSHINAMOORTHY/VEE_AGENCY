@@ -85,11 +85,14 @@ export default function Reports() {
           </div>
         </div>
 
-        {/* Charts Grid */}
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Business Bills Chart */}
+        {/* Business Reports */}
+        <section className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground">Business Reports</h2>
+            <p className="text-sm text-muted-foreground">Business bills summary and totals.</p>
+          </div>
           <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
-            <h2 className="font-semibold text-foreground mb-4">Business Bills Overview</h2>
+            <h3 className="font-semibold text-foreground mb-4">Business Bills Overview</h3>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={billsData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
@@ -116,10 +119,33 @@ export default function Reports() {
               </ResponsiveContainer>
             </div>
           </div>
-
-          {/* Personal Expenses Pie Chart */}
           <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
-            <h2 className="font-semibold text-foreground mb-4">Expenses by Category</h2>
+            <h3 className="font-semibold text-foreground mb-4">Business Summary</h3>
+            <div className="space-y-3">
+              {bills.map((bill) => (
+                <div key={bill.id} className="flex justify-between items-center p-3 bg-accent/30 rounded-lg">
+                  <div>
+                    <p className="font-medium text-foreground">{bill.name ?? bill.billNo}</p>
+                    <p className="text-xs text-muted-foreground">{bill.billNo}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-foreground">₹{bill.billAmount.toLocaleString()}</p>
+                    <p className="text-xs text-primary">Paid: ₹{bill.paid.toLocaleString()}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Personal Reports */}
+        <section className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground">Personal Reports</h2>
+            <p className="text-sm text-muted-foreground">Personal spending by category.</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+            <h3 className="font-semibold text-foreground mb-4">Expenses by Category</h3>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 {pieData.length === 0 ? (
@@ -161,32 +187,8 @@ export default function Reports() {
               </ResponsiveContainer>
             </div>
           </div>
-        </div>
-
-        {/* Data Tables */}
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Business Summary */}
           <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
-            <h2 className="font-semibold text-foreground mb-4">Business Summary</h2>
-            <div className="space-y-3">
-              {bills.map((bill) => (
-                <div key={bill.id} className="flex justify-between items-center p-3 bg-accent/30 rounded-lg">
-                  <div>
-                      <p className="font-medium text-foreground">{bill.name ?? bill.billNo}</p>
-                    <p className="text-xs text-muted-foreground">{bill.billNo}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-foreground">₹{bill.billAmount.toLocaleString()}</p>
-                    <p className="text-xs text-primary">Paid: ₹{bill.paid.toLocaleString()}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Category Breakdown */}
-          <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
-            <h2 className="font-semibold text-foreground mb-4">Category Breakdown</h2>
+            <h3 className="font-semibold text-foreground mb-4">Category Breakdown</h3>
             <div className="space-y-3">
               {Object.entries(expensesByCategory)
                 .sort(([, a], [, b]) => b - a)
@@ -209,7 +211,7 @@ export default function Reports() {
                 })}
             </div>
           </div>
-        </div>
+        </section>
       </div>
     </PageLayout>
   );
