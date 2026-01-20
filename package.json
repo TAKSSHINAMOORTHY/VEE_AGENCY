@@ -11,7 +11,10 @@
     "preview": "vite preview",
     "android:build": "npm run build",
     "android:sync": "npm run build && npx cap sync android",
-    "android:open": "npx cap open android"
+    "android:open": "npx cap open android",
+    "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug && cd .. && cp android/app/build/outputs/apk/debug/app-debug.apk ./expense-compass.apk",
+    "android:run": "npm run android:apk && npx native-run android --app android/app/build/outputs/apk/debug/app-debug.apk",
+    "launch": "node scripts/launcher.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
