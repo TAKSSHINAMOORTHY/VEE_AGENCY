@@ -53,7 +53,7 @@ export function CategorySummaryCards({ expenses }: CategorySummaryCardsProps) {
               </div>
             </div>
             <p className="text-xs text-muted-foreground truncate">{category}</p>
-            <p className="text-lg font-bold text-foreground">${total.toLocaleString()}</p>
+            <p className="text-lg font-bold text-foreground">₹{total.toLocaleString()}</p>
           </div>
         );
       })}

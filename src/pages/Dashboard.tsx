@@ -1,10 +1,12 @@
 import { PageLayout } from '@/components/layout/PageLayout';
 import { SummaryCard } from '@/components/common/SummaryCard';
-import { mockBills, mockExpenses } from '@/data/mockData';
-import { 
-  Briefcase, 
-  User, 
-  TrendingUp, 
+import { useLocalStorageState } from '@/hooks/useLocalStorageState';
+import { STORAGE_KEYS } from '@/lib/storageKeys';
+import { Bill, Expense } from '@/types/expense';
+import {
+  Briefcase,
+  User,
+  TrendingUp,
   TrendingDown,
   ArrowRight,
   Receipt,
@@ -15,13 +17,19 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { format } from 'date-fns';
 
 export default function Dashboard() {
-  const totalBillAmount = mockBills.reduce((sum, bill) => sum + bill.billAmount, 0);
-  const totalPaid = mockBills.reduce((sum, bill) => sum + bill.paid, 0);
-  const totalBalance = mockBills.reduce((sum, bill) => sum + bill.balance, 0);
-  const totalExpenses = mockExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-  
-  const pendingBills = mockBills.filter(bill => bill.status === 'pending');
-  const recentExpenses = mockExpenses.slice(0, 5);
+  const [bills] = useLocalStorageState<Bill[]>(STORAGE_KEYS.bills, []);
+  const [expenses] = useLocalStorageState<Expense[]>(STORAGE_KEYS.expenses, []);
+
+  const totalBillAmount = bills.reduce((sum, bill) => sum + bill.billAmount, 0);
+  const totalPaid = bills.reduce((sum, bill) => sum + bill.paid, 0);
+  const totalBalance = bills.reduce((sum, bill) => sum + bill.balance, 0);
+  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+  const pendingBills = bills.filter(bill => bill.status === 'pending');
+  const recentExpenses = expenses
+    .slice()
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
 
   return (
     <PageLayout>
@@ -36,27 +44,27 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <SummaryCard
             title="Business Bills"
-            value={`$${totalBillAmount.toLocaleString()}`}
+            value={`₹${totalBillAmount.toLocaleString()}`}
             icon={<Briefcase className="w-5 h-5 text-primary" />}
-            subtitle={`${mockBills.length} total bills`}
+            subtitle={`${bills.length} total bills`}
           />
           <SummaryCard
             title="Amount Paid"
-            value={`$${totalPaid.toLocaleString()}`}
+            value={`₹${totalPaid.toLocaleString()}`}
             icon={<TrendingUp className="w-5 h-5 text-primary" />}
             subtitle="Across all bills"
           />
           <SummaryCard
             title="Outstanding"
-            value={`$${totalBalance.toLocaleString()}`}
+            value={`₹${totalBalance.toLocaleString()}`}
             icon={<TrendingDown className="w-5 h-5 text-destructive" />}
             subtitle={`${pendingBills.length} pending`}
           />
           <SummaryCard
             title="Personal Expenses"
-            value={`$${totalExpenses.toLocaleString()}`}
+            value={`₹${totalExpenses.toLocaleString()}`}
             icon={<User className="w-5 h-5 text-primary" />}
-            subtitle={`${mockExpenses.length} transactions`}
+            subtitle={`${expenses.length} transactions`}
           />
         </div>
 
@@ -69,8 +77,8 @@ export default function Dashboard() {
                 <Receipt className="w-5 h-5 text-primary" />
                 <h2 className="font-semibold text-foreground">Pending Bills</h2>
               </div>
-              <Link 
-                to="/business" 
+              <Link
+                to="/business"
                 className="text-sm text-primary hover:underline flex items-center gap-1"
               >
                 View all <ArrowRight className="w-3 h-3" />
@@ -88,12 +96,12 @@ export default function Dashboard() {
                     className="flex items-center justify-between p-3 bg-accent/30 rounded-lg"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-foreground truncate">{bill.name}</p>
+                      <p className="font-medium text-foreground truncate">{bill.name ?? bill.billNo}</p>
                       <p className="text-xs text-muted-foreground">{bill.billNo}</p>
                     </div>
                     <div className="text-right ml-3">
                       <p className="font-semibold text-destructive">
-                        ${bill.balance.toLocaleString()}
+                        ₹{bill.balance.toLocaleString()}
                       </p>
                       <StatusBadge status={bill.status} />
                     </div>
@@ -110,8 +118,8 @@ export default function Dashboard() {
                 <Wallet className="w-5 h-5 text-primary" />
                 <h2 className="font-semibold text-foreground">Recent Expenses</h2>
               </div>
-              <Link 
-                to="/personal" 
+              <Link
+                to="/personal"
                 className="text-sm text-primary hover:underline flex items-center gap-1"
               >
                 View all <ArrowRight className="w-3 h-3" />
@@ -134,7 +142,7 @@ export default function Dashboard() {
                     </div>
                     <div className="text-right ml-3">
                       <p className="font-semibold text-foreground">
-                        ${expense.amount.toLocaleString()}
+                        ₹{expense.amount.toLocaleString()}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {format(new Date(expense.date), 'MMM d')}

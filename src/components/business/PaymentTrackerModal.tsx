@@ -1,4 +1,4 @@
-import { X, Check, Clock, DollarSign } from 'lucide-react';
+import { Check, Clock, DollarSign, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -15,9 +15,10 @@ interface PaymentTrackerModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAddPaymentClick: () => void;
+  onEditBillClick: () => void;
 }
 
-export function PaymentTrackerModal({ bill, open, onOpenChange, onAddPaymentClick }: PaymentTrackerModalProps) {
+export function PaymentTrackerModal({ bill, open, onOpenChange, onAddPaymentClick, onEditBillClick }: PaymentTrackerModalProps) {
   const progressPercent = (bill.paid / bill.billAmount) * 100;
 
   return (
@@ -33,7 +34,7 @@ export function PaymentTrackerModal({ bill, open, onOpenChange, onAddPaymentClic
         <div className="space-y-6">
           {/* Bill Info */}
           <div className="bg-accent/30 rounded-xl p-4">
-            <h3 className="font-semibold text-foreground text-lg">{bill.name}</h3>
+            <h3 className="font-semibold text-foreground text-lg">{bill.name ?? bill.billNo}</h3>
             <p className="text-sm text-muted-foreground">
               Created: {format(new Date(bill.dateCreated), 'PPP')}
             </p>
@@ -99,12 +100,23 @@ export function PaymentTrackerModal({ bill, open, onOpenChange, onAddPaymentClic
           </div>
 
           {/* Action Button */}
-          {bill.status === 'pending' && (
-            <Button className="w-full" onClick={onAddPaymentClick}>
-              <DollarSign className="w-4 h-4 mr-2" />
-              Add Payment
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Button variant="outline" className="w-full" onClick={onEditBillClick}>
+              <Pencil className="w-4 h-4 mr-2" />
+              Edit Bill
             </Button>
-          )}
+            {bill.status === 'pending' ? (
+              <Button className="w-full" onClick={onAddPaymentClick}>
+                <DollarSign className="w-4 h-4 mr-2" />
+                Add Payment
+              </Button>
+            ) : (
+              <Button className="w-full" disabled>
+                <Check className="w-4 h-4 mr-2" />
+                Paid
+              </Button>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

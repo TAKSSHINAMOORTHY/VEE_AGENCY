@@ -1,0 +1,328 @@
+/* Print Styles for Ledger Invoice - A4 Format */
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    -webkit-filter: none !important;
+    filter: none !important;
+    print-color-adjust: exact !important;
+  }
+
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: white;
+    color: black;
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.4;
+  }
+
+  @page {
+    size: A4;
+    margin: 0.5in;
+  }
+
+  .print-container {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: white;
+    color: black;
+  }
+
+  /* Hide elements not needed for print */
+  .no-print,
+  .no-print * {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0;
+    overflow: hidden;
+  }
+
+  /* Company Header Styling */
+  .print-container h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: black;
+    margin: 0 0 8px 0;
+    letter-spacing: 0.5px;
+  }
+
+  .print-container h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: black;
+    margin: 0 0 8px 0;
+  }
+
+  .print-container h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: black;
+    margin: 0 0 6px 0;
+  }
+
+  /* Table Styling */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 11px;
+  }
+
+  th,
+  td {
+    border: 1px solid black;
+    padding: 8px;
+    text-align: left;
+    color: black;
+    font-weight: normal;
+  }
+
+  th {
+    background-color: #d3d3d3 !important;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  /* Preserve table rows */
+  tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Summary Cards */
+  .summary-card {
+    border: 2px solid black;
+    padding: 12px;
+    margin: 8px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Right align for amounts */
+  td:nth-child(3),
+  td:nth-child(4),
+  td:nth-child(5),
+  th:nth-child(3),
+  th:nth-child(4),
+  th:nth-child(5) {
+    text-align: right;
+  }
+
+  /* Page breaks */
+  .page-break {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .page-break-before {
+    page-break-before: always;
+    break-before: page;
+  }
+
+  /* Avoid breaking in these sections */
+  .print-container > div {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Text alignment utilities */
+  .text-center {
+    text-align: center;
+  }
+
+  .text-right {
+    text-align: right;
+  }
+
+  .text-left {
+    text-align: left;
+  }
+
+  /* Font colors and styles must be exact */
+  .text-black {
+    color: black !important;
+  }
+
+  .text-gray-600,
+  .text-gray-700,
+  .text-muted-foreground {
+    color: #333333 !important;
+  }
+
+  .font-bold {
+    font-weight: 700 !important;
+  }
+
+  .font-semibold {
+    font-weight: 600 !important;
+  }
+
+  .font-medium {
+    font-weight: 500 !important;
+  }
+
+  /* Border styles */
+  .border,
+  .border-b-2,
+  .border-t-2,
+  .border-2,
+  .border-b-4 {
+    border-color: black !important;
+  }
+
+  /* Background colors for highlights */
+  .bg-yellow-200,
+  .bg-gray-200,
+  .bg-gray-300 {
+    background-color: #e8e8e8 !important;
+  }
+
+  /* Grid layout for signatures */
+  .grid {
+    display: grid;
+  }
+
+  .grid-cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .grid-cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Spacing utilities */
+  .mb-2,
+  .mb-4,
+  .mb-6,
+  .mb-8,
+  .mb-12 {
+    margin-bottom: auto;
+  }
+
+  .mt-2,
+  .mt-8,
+  .mt-12 {
+    margin-top: auto;
+  }
+
+  .p-2,
+  .p-4,
+  .p-8 {
+    padding: auto;
+  }
+
+  /* Currency formatting */
+  [data-currency='inr']::before {
+    content: '₹';
+  }
+
+  /* Dashed borders for stamp area */
+  .border-dashed {
+    border-style: dashed !important;
+  }
+
+  /* Prevent overflow */
+  img {
+    max-width: 100%;
+    page-break-inside: avoid;
+  }
+
+  /* Ensure proper spacing in signature areas */
+  .signature-area {
+    min-height: 80px;
+    border-top: 1px solid black;
+  }
+
+  /* Footer text */
+  .text-xs {
+    font-size: 9px;
+  }
+
+  .text-sm {
+    font-size: 11px;
+  }
+
+  .text-lg {
+    font-size: 14px;
+  }
+
+  .text-2xl {
+    font-size: 18px;
+  }
+
+  .text-3xl {
+    font-size: 24px;
+  }
+
+  /* Remove any transparency */
+  .opacity-50,
+  .opacity-60,
+  .opacity-75 {
+    opacity: 1 !important;
+  }
+
+  /* Ensure shadows don't print */
+  .shadow,
+  .shadow-lg,
+  .shadow-sm {
+    box-shadow: none !important;
+  }
+
+  /* Hide scrollbars */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Proper line height for readability */
+  p {
+    line-height: 1.3;
+    margin: 4px 0;
+  }
+
+  /* Remove any hover effects */
+  a:hover,
+  button:hover {
+    background-color: inherit !important;
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+
+  /* Ensure buttons don't print */
+  button,
+  input[type='button'],
+  input[type='submit'] {
+    display: none !important;
+  }
+
+  /* Preserve text wrapping */
+  td,
+  th {
+    word-wrap: break-word;
+    word-break: break-word;
+  }
+}
+
+/* Print orientation specific */
+@media print and (orientation: portrait) {
+  @page {
+    size: A4 portrait;
+  }
+}
+
+@media print and (orientation: landscape) {
+  @page {
+    size: A4 landscape;
+  }
+}

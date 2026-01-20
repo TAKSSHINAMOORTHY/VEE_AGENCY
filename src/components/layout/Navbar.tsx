@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Briefcase, User, BarChart3, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Briefcase, User, BarChart3, Menu, X, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -8,6 +8,7 @@ const navItems = [
   { to: '/business', label: 'Business', icon: Briefcase },
   { to: '/personal', label: 'Personal', icon: User },
   { to: '/reports', label: 'Reports', icon: BarChart3 },
+  { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export function Navbar() {
@@ -21,10 +22,10 @@ export function Navbar() {
           {/* Logo */}
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">EM</span>
+              <span className="text-primary-foreground font-bold text-sm">VA</span>
             </div>
             <span className="font-semibold text-foreground text-lg hidden sm:block">
-              Expense Manager
+              Vee Agency
             </span>
           </div>
 

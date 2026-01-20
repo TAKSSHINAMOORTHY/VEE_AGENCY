@@ -62,7 +62,7 @@ export function ExpenseTable({ expenses }: ExpenseTableProps) {
                   {expense.description}
                 </TableCell>
                 <TableCell className="text-right font-semibold text-destructive">
-                  ${expense.amount.toLocaleString()}
+                  ₹{expense.amount.toLocaleString()}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {format(new Date(expense.date), 'MMM d, yyyy')}

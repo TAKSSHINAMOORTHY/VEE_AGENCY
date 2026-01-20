@@ -10,14 +10,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { expenseCategories } from '@/data/mockData';
 
 interface AddExpenseModalProps {
   onAddExpense: (expense: {
@@ -69,22 +61,13 @@ export function AddExpenseModal({ onAddExpense }: AddExpenseModalProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
-            <Select
+            <Input
+              id="category"
+              placeholder="e.g. Groceries"
               value={formData.category}
-              onValueChange={(value) => setFormData({ ...formData, category: value })}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               required
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {expenseCategories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>

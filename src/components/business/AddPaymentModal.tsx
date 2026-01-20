@@ -42,12 +42,12 @@ export function AddPaymentModal({ bill, open, onOpenChange, onAddPayment }: AddP
         <div className="bg-accent/50 rounded-lg p-4 mb-4">
           <p className="text-sm text-muted-foreground">Bill: {bill.name}</p>
           <p className="text-lg font-semibold text-foreground">
-            Balance: ${bill.balance.toLocaleString()}
+            Balance: ₹{bill.balance.toLocaleString()}
           </p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="amount">Payment Amount ($)</Label>
+            <Label htmlFor="amount">Payment Amount (₹)</Label>
             <Input
               id="amount"
               type="number"
@@ -60,7 +60,7 @@ export function AddPaymentModal({ bill, open, onOpenChange, onAddPayment }: AddP
               required
             />
             <p className="text-xs text-muted-foreground">
-              Maximum: ${bill.balance.toLocaleString()}
+              Maximum: ₹{bill.balance.toLocaleString()}
             </p>
           </div>
           <div className="space-y-2">

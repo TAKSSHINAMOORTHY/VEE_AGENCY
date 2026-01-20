@@ -1,16 +1,17 @@
-import { useState } from 'react';
+import { useLocalStorageState } from '@/hooks/useLocalStorageState';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { ExpenseTable } from '@/components/personal/ExpenseTable';
 import { AddExpenseModal } from '@/components/personal/AddExpenseModal';
 import { CategorySummaryCards } from '@/components/personal/CategorySummaryCards';
 import { SummaryCard } from '@/components/common/SummaryCard';
 import { ExportButtons } from '@/components/common/ExportButtons';
-import { mockExpenses } from '@/data/mockData';
 import { Expense } from '@/types/expense';
+import { STORAGE_KEYS } from '@/lib/storageKeys';
+import { createId } from '@/lib/id';
 import { Wallet, TrendingDown, Calendar, PieChart } from 'lucide-react';
 
 export default function Personal() {
-  const [expenses, setExpenses] = useState<Expense[]>(mockExpenses);
+  const [expenses, setExpenses] = useLocalStorageState<Expense[]>(STORAGE_KEYS.expenses, []);
 
   const handleAddExpense = (expenseData: {
     category: string;
@@ -19,10 +20,10 @@ export default function Personal() {
     date: string;
   }) => {
     const newExpense: Expense = {
-      id: Date.now().toString(),
+      id: createId(),
       ...expenseData,
     };
-    setExpenses([newExpense, ...expenses]);
+    setExpenses((prev) => [newExpense, ...prev]);
   };
 
   const totalSpent = expenses.reduce((sum, expense) => sum + expense.amount, 0);
@@ -30,7 +31,7 @@ export default function Personal() {
   const thisMonthExpenses = expenses.filter(e => {
     const expenseDate = new Date(e.date);
     const now = new Date();
-    return expenseDate.getMonth() === now.getMonth() && 
+    return expenseDate.getMonth() === now.getMonth() &&
            expenseDate.getFullYear() === now.getFullYear();
   });
   const thisMonthTotal = thisMonthExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -55,19 +56,19 @@ export default function Personal() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <SummaryCard
             title="Total Spent"
-            value={`$${totalSpent.toLocaleString()}`}
+            value={`₹${totalSpent.toLocaleString()}`}
             icon={<Wallet className="w-5 h-5 text-primary" />}
             subtitle={`${expenses.length} transactions`}
           />
           <SummaryCard
             title="This Month"
-            value={`$${thisMonthTotal.toLocaleString()}`}
+            value={`₹${thisMonthTotal.toLocaleString()}`}
             icon={<Calendar className="w-5 h-5 text-primary" />}
             subtitle={`${thisMonthExpenses.length} expenses`}
           />
           <SummaryCard
             title="Average"
-            value={`$${avgExpense.toFixed(2)}`}
+            value={`₹${avgExpense.toFixed(2)}`}
             icon={<TrendingDown className="w-5 h-5 text-primary" />}
             subtitle="Per transaction"
           />

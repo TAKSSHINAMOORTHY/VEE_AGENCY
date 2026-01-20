@@ -14,7 +14,6 @@ import {
 interface AddBillModalProps {
   onAddBill: (bill: {
     billNo: string;
-    name: string;
     billAmount: number;
     dateCreated: string;
   }) => void;
@@ -24,7 +23,6 @@ export function AddBillModal({ onAddBill }: AddBillModalProps) {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     billNo: '',
-    name: '',
     billAmount: '',
     dateCreated: new Date().toISOString().split('T')[0],
   });
@@ -33,13 +31,11 @@ export function AddBillModal({ onAddBill }: AddBillModalProps) {
     e.preventDefault();
     onAddBill({
       billNo: formData.billNo,
-      name: formData.name,
       billAmount: parseFloat(formData.billAmount),
       dateCreated: formData.dateCreated,
     });
     setFormData({
       billNo: '',
-      name: '',
       billAmount: '',
       dateCreated: new Date().toISOString().split('T')[0],
     });
@@ -60,27 +56,17 @@ export function AddBillModal({ onAddBill }: AddBillModalProps) {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="billNo">Bill Number</Label>
+            <Label htmlFor="billNo">Deal Name</Label>
             <Input
               id="billNo"
-              placeholder="BILL-006"
+              placeholder="Enter deal name"
               value={formData.billNo}
               onChange={(e) => setFormData({ ...formData, billNo: e.target.value })}
               required
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="name">Name / Description</Label>
-            <Input
-              id="name"
-              placeholder="Enter bill name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="billAmount">Bill Amount ($)</Label>
+            <Label htmlFor="billAmount">Bill Amount (₹)</Label>
             <Input
               id="billAmount"
               type="number"

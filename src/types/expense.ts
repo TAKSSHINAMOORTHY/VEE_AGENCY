@@ -1,12 +1,13 @@
 export interface Bill {
   id: string;
   billNo: string;
-  name: string;
+  name?: string;
   billAmount: number;
   paid: number;
   balance: number;
-  status: 'completed' | 'pending';
+  status: 'paid' | 'pending' | 'completed';
   dateCreated: string;
+  dueDate: string;
   payments: Payment[];
 }
 
@@ -25,12 +26,4 @@ export interface Expense {
   date: string;
 }
 
-export type ExpenseCategory = 
-  | 'Food & Dining'
-  | 'Transportation'
-  | 'Shopping'
-  | 'Entertainment'
-  | 'Bills & Utilities'
-  | 'Healthcare'
-  | 'Travel'
-  | 'Other';
+export type ExpenseCategory = string;
