@@ -1,11 +1,12 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Briefcase, User, BarChart3, Menu, X, Settings } from 'lucide-react';
-import { useState } from 'react';
+import { LayoutDashboard, Briefcase, User, BarChart3, Menu, X, Settings, BookOpenText } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/business', label: 'Business', icon: Briefcase },
+  { to: '/ledger', label: 'Ledger', icon: BookOpenText },
   { to: '/personal', label: 'Personal', icon: User },
   { to: '/reports', label: 'Reports', icon: BarChart3 },
   { to: '/settings', label: 'Settings', icon: Settings },
@@ -14,6 +15,11 @@ const navItems = [
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    setMobileOpen(false);
+  }, [location.pathname, mobileOpen]);
 
   return (
     <nav className="sticky top-0 z-50 bg-card border-b border-border shadow-sm">
