@@ -153,7 +153,12 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  :root {
+    --status-bar-offset: 0px;
+  }
+
   body {
     @apply bg-background text-foreground;
+    padding-top: var(--status-bar-offset);
   }
 }

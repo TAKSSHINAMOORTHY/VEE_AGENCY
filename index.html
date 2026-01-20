@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Vee Agency</title>
     <meta name="description" content="Track business bills and personal expenses" />
 
@@ -12,10 +12,25 @@
 
 
     <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      window.Capacitor = window.Capacitor || {};
+      if (typeof window.Capacitor.triggerEvent !== "function") {
+        window.Capacitor.triggerEvent = function () {
+          return false;
+        };
+      }
+      window.addEventListener("error", function (event) {
+        var message = event.error && event.error.stack ? event.error.stack : event.message;
+        console.error("PreloadError", message);
+      });
+      window.addEventListener("unhandledrejection", function (event) {
+        console.error("PreloadRejection", event.reason);
+      });
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
   </head>
 
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
