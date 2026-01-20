@@ -42,42 +42,48 @@ public class BiometricAuthPlugin extends Plugin {
             return;
         }
 
-        Executor executor = ContextCompat.getMainExecutor(getContext());
+        activity.runOnUiThread(() -> {
+            try {
+                Executor executor = ContextCompat.getMainExecutor(getContext());
 
-        BiometricPrompt.AuthenticationCallback callback = new BiometricPrompt.AuthenticationCallback() {
-            @Override
-            public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
-                JSObject ret = new JSObject();
-                ret.put("success", true);
-                call.resolve(ret);
+                BiometricPrompt.AuthenticationCallback callback = new BiometricPrompt.AuthenticationCallback() {
+                    @Override
+                    public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+                        JSObject ret = new JSObject();
+                        ret.put("success", true);
+                        call.resolve(ret);
+                    }
+
+                    @Override
+                    public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+                        call.reject(errString.toString());
+                    }
+
+                    @Override
+                    public void onAuthenticationFailed() {
+                        // Keep prompt open; no-op.
+                    }
+                };
+
+                BiometricPrompt prompt = new BiometricPrompt(activity, executor, callback);
+
+                BiometricPrompt.PromptInfo.Builder builder = new BiometricPrompt.PromptInfo.Builder()
+                        .setTitle(title);
+
+                if (subtitle != null && !subtitle.isEmpty()) {
+                    builder.setSubtitle(subtitle);
+                }
+
+                builder.setAllowedAuthenticators(
+                        BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.BIOMETRIC_WEAK
+                );
+
+                builder.setNegativeButtonText("Cancel");
+
+                prompt.authenticate(builder.build());
+            } catch (Exception e) {
+                call.reject("Biometric prompt failed", e);
             }
-
-            @Override
-            public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
-                call.reject(errString.toString());
-            }
-
-            @Override
-            public void onAuthenticationFailed() {
-                // Keep prompt open; no-op.
-            }
-        };
-
-        BiometricPrompt prompt = new BiometricPrompt(activity, executor, callback);
-
-        BiometricPrompt.PromptInfo.Builder builder = new BiometricPrompt.PromptInfo.Builder()
-                .setTitle(title);
-
-        if (subtitle != null && !subtitle.isEmpty()) {
-            builder.setSubtitle(subtitle);
-        }
-
-        builder.setAllowedAuthenticators(
-                BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.BIOMETRIC_WEAK
-        );
-
-        builder.setNegativeButtonText("Cancel");
-
-        prompt.authenticate(builder.build());
+        });
     }
 }

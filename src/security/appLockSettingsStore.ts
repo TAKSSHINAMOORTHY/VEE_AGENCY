@@ -4,13 +4,11 @@ import { secureGet, secureSet } from "@/security/native";
 export type AppLockSettingsV1 = {
   version: 1;
   fingerprintEnabled: boolean;
-  faceEnabled: boolean;
 };
 
 const DEFAULT_SETTINGS: AppLockSettingsV1 = {
   version: 1,
   fingerprintEnabled: true,
-  faceEnabled: true,
 };
 
 export async function getAppLockSettings(): Promise<AppLockSettingsV1> {
@@ -24,7 +22,6 @@ export async function getAppLockSettings(): Promise<AppLockSettingsV1> {
     return {
       version: 1,
       fingerprintEnabled: parsed.fingerprintEnabled ?? DEFAULT_SETTINGS.fingerprintEnabled,
-      faceEnabled: parsed.faceEnabled ?? DEFAULT_SETTINGS.faceEnabled,
     };
   } catch {
     return DEFAULT_SETTINGS;

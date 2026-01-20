@@ -41,10 +41,12 @@ export function useAppLock() {
 
     setIsReady(true);
 
-    // Mandatory lock: if no PIN yet, force setup screen (locked).
+    // Mandatory lock on resume. Only force setup if no PIN exists.
     setIsLocked(true);
-    setSetupStep("create");
-    firstPinRef.current = null;
+    if (!payload) {
+      setSetupStep("create");
+      firstPinRef.current = null;
+    }
   }, [enabled]);
 
   useEffect(() => {
@@ -54,6 +56,15 @@ export function useAppLock() {
   useEffect(() => {
     // Lock on every resume/activate.
     const lockNow = () => {
+      try {
+        const skipOnce = sessionStorage.getItem("appLockSkipOnce");
+        if (skipOnce === "1") {
+          sessionStorage.removeItem("appLockSkipOnce");
+          return;
+        }
+      } catch {
+        // ignore storage errors
+      }
       setIsLocked(true);
     };
 
@@ -78,10 +89,12 @@ export function useAppLock() {
 
   const biometricsEnabled = useMemo(() => {
     if (!settings) return true;
-    return settings.fingerprintEnabled || settings.faceEnabled;
+    return settings.fingerprintEnabled;
   }, [settings]);
 
   const biometricAllowed = useMemo(() => biometricAvailable && biometricsEnabled, [biometricAvailable, biometricsEnabled]);
+
+  const autoPromptedRef = useRef(false);
 
   const unlockWithBiometric = useCallback(async () => {
     if (!biometricAllowed) return false;
@@ -89,6 +102,18 @@ export function useAppLock() {
     if (ok) setIsLocked(false);
     return ok;
   }, [biometricAllowed]);
+
+  useEffect(() => {
+    if (!enabled || !isReady || !isLocked || needsSetup || !biometricAllowed) {
+      autoPromptedRef.current = false;
+      return;
+    }
+
+    if (autoPromptedRef.current) return;
+    autoPromptedRef.current = true;
+
+    void unlockWithBiometric();
+  }, [enabled, isReady, isLocked, needsSetup, biometricAllowed, unlockWithBiometric]);
 
   const unlockWithPin = useCallback(
     async (pin: string) => {

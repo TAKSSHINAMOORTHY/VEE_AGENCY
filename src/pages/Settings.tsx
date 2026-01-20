@@ -4,19 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/use-toast";
 import { Capacitor } from "@capacitor/core";
-import { biometricIsAvailable, secureGet, secureRemove, secureSet } from "@/security/native";
+import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
+import {
+  biometricAvailabilityDetails,
+  biometricIsAvailable,
+  openFileWithPicker,
+  saveFileWithPicker,
+  secureGet,
+  secureRemove,
+  secureSet,
+} from "@/security/native";
 import { getAppLockSettings, setAppLockSettings, type AppLockSettingsV1 } from "@/security/appLockSettingsStore";
 import { createPinPayload, isValidPin, verifyPinPayload, type PinPayloadV1 } from "@/security/pin";
 import { getStoredPinPayload, setStoredPinPayload } from "@/security/appLockStore";
@@ -46,26 +46,81 @@ function downloadJson(filename: string, obj: unknown) {
   URL.revokeObjectURL(url);
 }
 
-async function exportBackup(): Promise<void> {
-  const keys = [
-    STORAGE_KEYS.bills,
-    STORAGE_KEYS.expenses,
-    STORAGE_KEYS.appLockSettings,
-    STORAGE_KEYS.appLockPin,
-  ];
-
+async function exportBackup(isNative: boolean): Promise<string | null> {
   const data: Record<string, string | null> = {};
-  for (const key of keys) {
-    data[key] = await secureGet(key);
+  try {
+    data[STORAGE_KEYS.bills] = localStorage.getItem(STORAGE_KEYS.bills);
+  } catch {
+    data[STORAGE_KEYS.bills] = null;
   }
+
+  try {
+    data[STORAGE_KEYS.expenses] = localStorage.getItem(STORAGE_KEYS.expenses);
+  } catch {
+    data[STORAGE_KEYS.expenses] = null;
+  }
+
+  data[STORAGE_KEYS.appLockSettings] = await secureGet(STORAGE_KEYS.appLockSettings);
+  data[STORAGE_KEYS.appLockPin] = await secureGet(STORAGE_KEYS.appLockPin);
 
   const payload: BackupPayloadV1 = {
     version: 1,
     exportedAt: new Date().toISOString(),
     data,
   };
+  const filename = `expense-compass-backup-${nowStamp()}.json`;
 
-  downloadJson(`expense-compass-backup-${nowStamp()}.json`, payload);
+  if (!isNative) {
+    downloadJson(filename, payload);
+    return null;
+  }
+  const json = JSON.stringify(payload, null, 2);
+
+  // Save to user-selected location via file manager.
+  const selectedUri = await saveFileWithPicker({
+    filename,
+    mimeType: "application/json",
+    data: json,
+  });
+
+  // Also write a cache copy to support sharing.
+  const cachePath = `ExpenseCompass/${filename}`;
+  try {
+    await Filesystem.mkdir({
+      path: "ExpenseCompass",
+      directory: Directory.Cache,
+      recursive: true,
+    });
+  } catch {
+    // ignore if already exists
+  }
+  await Filesystem.writeFile({
+    path: cachePath,
+    data: json,
+    directory: Directory.Cache,
+    encoding: Encoding.UTF8,
+  });
+
+  const cacheUri = await Filesystem.getUri({
+    path: cachePath,
+    directory: Directory.Cache,
+  });
+
+  try {
+    const { value } = await Share.canShare();
+    if (value) {
+      await Share.share({
+        title: "Expense Compass Backup",
+        text: "Share your backup",
+        files: [cacheUri.uri],
+        dialogTitle: "Share backup",
+      });
+    }
+  } catch {
+    // ignore share errors
+  }
+
+  return selectedUri;
 }
 
 async function restoreBackup(fileText: string): Promise<void> {
@@ -76,35 +131,73 @@ async function restoreBackup(fileText: string): Promise<void> {
     throw new Error("Invalid JSON file");
   }
 
-  if (parsed.version !== 1 || !parsed.data || typeof parsed.data !== "object") {
+  if (!parsed || typeof parsed !== "object" || typeof parsed.version !== "number") {
     throw new Error("Unsupported backup format");
   }
 
-  const keys = [
-    STORAGE_KEYS.bills,
-    STORAGE_KEYS.expenses,
-    STORAGE_KEYS.appLockSettings,
-    STORAGE_KEYS.appLockPin,
-  ];
+  if (parsed.version !== 1) {
+    throw new Error("Unsupported backup format");
+  }
 
-  for (const key of keys) {
-    const value = Object.prototype.hasOwnProperty.call(parsed.data, key) ? parsed.data[key] : null;
-    if (value === null || value === undefined) {
-      await secureRemove(key);
+  const data = parsed.data;
+
+  const billsValue = Object.prototype.hasOwnProperty.call(data, STORAGE_KEYS.bills)
+    ? data[STORAGE_KEYS.bills]
+    : null;
+  try {
+    if (billsValue === null || billsValue === undefined) {
+      localStorage.removeItem(STORAGE_KEYS.bills);
     } else {
-      await secureSet(key, value);
+      localStorage.setItem(STORAGE_KEYS.bills, billsValue);
     }
+  } catch {
+    // ignore local storage errors
+  }
+
+  const expensesValue = Object.prototype.hasOwnProperty.call(data, STORAGE_KEYS.expenses)
+    ? data[STORAGE_KEYS.expenses]
+    : null;
+  try {
+    if (expensesValue === null || expensesValue === undefined) {
+      localStorage.removeItem(STORAGE_KEYS.expenses);
+    } else {
+      localStorage.setItem(STORAGE_KEYS.expenses, expensesValue);
+    }
+  } catch {
+    // ignore local storage errors
+  }
+
+  const lockSettingsValue = Object.prototype.hasOwnProperty.call(data, STORAGE_KEYS.appLockSettings)
+    ? data[STORAGE_KEYS.appLockSettings]
+    : null;
+  if (lockSettingsValue === null || lockSettingsValue === undefined) {
+    await secureRemove(STORAGE_KEYS.appLockSettings);
+  } else {
+    await secureSet(STORAGE_KEYS.appLockSettings, lockSettingsValue);
+  }
+
+  const lockPinValue = Object.prototype.hasOwnProperty.call(data, STORAGE_KEYS.appLockPin)
+    ? data[STORAGE_KEYS.appLockPin]
+    : null;
+  if (lockPinValue === null || lockPinValue === undefined) {
+    await secureRemove(STORAGE_KEYS.appLockPin);
+  } else {
+    await secureSet(STORAGE_KEYS.appLockPin, lockPinValue);
   }
 }
 
 export default function Settings() {
   const isNative = useMemo(() => Capacitor.isNativePlatform(), []);
 
+  const reloadAfterRestore = () => {
+    setTimeout(() => window.location.reload(), 800);
+  };
+
   const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricReason, setBiometricReason] = useState<string | null>(null);
   const [settings, setSettings] = useState<AppLockSettingsV1>({
     version: 1,
     fingerprintEnabled: true,
-    faceEnabled: true,
   });
 
   const [pinPayload, setPinPayload] = useState<PinPayloadV1 | null>(null);
@@ -116,9 +209,6 @@ export default function Settings() {
 
   const [busyBackup, setBusyBackup] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
-  const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
-  const [pendingRestoreText, setPendingRestoreText] = useState<string | null>(null);
-  const [pendingRestoreName, setPendingRestoreName] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -128,13 +218,14 @@ export default function Settings() {
         return;
       }
 
-      const [avail, s, p] = await Promise.all([
-        biometricIsAvailable(),
+      const [availDetails, s, p] = await Promise.all([
+        biometricAvailabilityDetails(),
         getAppLockSettings(),
         getStoredPinPayload(),
       ]);
 
-      setBiometricAvailable(avail);
+      setBiometricAvailable(availDetails.available);
+      setBiometricReason(availDetails.error ?? null);
       setSettings(s);
       setPinPayload(p);
     };
@@ -142,7 +233,7 @@ export default function Settings() {
     void load();
   }, [isNative]);
 
-  const canUseBiometrics = biometricAvailable;
+  const canUseBiometrics = biometricAvailable && Boolean(pinPayload);
 
   const setSetting = async (next: AppLockSettingsV1) => {
     setSettings(next);
@@ -150,18 +241,13 @@ export default function Settings() {
     toast({ title: "Settings saved" });
   };
 
-  const handleChangePin = async () => {
+  const handleSavePin = async () => {
     if (!isNative) {
       toast({ title: "Unavailable", description: "PIN is enforced on Android only." });
       return;
     }
 
-    if (!pinPayload) {
-      toast({ title: "No PIN set", description: "Open the app to create a PIN first." });
-      return;
-    }
-
-    if (!isValidPin(currentPin) || !isValidPin(newPin) || !isValidPin(confirmPin)) {
+    if (!isValidPin(newPin) || !isValidPin(confirmPin)) {
       toast({ title: "Invalid PIN", description: "PIN must be 4 digits." });
       return;
     }
@@ -173,11 +259,13 @@ export default function Settings() {
 
     setSavingPin(true);
     try {
-      const ok = await verifyPinPayload(currentPin, pinPayload);
-      if (!ok) {
-        toast({ title: "Incorrect PIN", description: "Current PIN is wrong." });
-        setCurrentPin("");
-        return;
+      if (pinPayload) {
+        const ok = await verifyPinPayload(currentPin, pinPayload);
+        if (!ok) {
+          toast({ title: "Incorrect PIN", description: "Current PIN is wrong." });
+          setCurrentPin("");
+          return;
+        }
       }
 
       const nextPayload = await createPinPayload(newPin);
@@ -188,7 +276,7 @@ export default function Settings() {
       setNewPin("");
       setConfirmPin("");
 
-      toast({ title: "PIN updated" });
+      toast({ title: pinPayload ? "PIN updated" : "PIN created" });
     } finally {
       setSavingPin(false);
     }
@@ -197,14 +285,42 @@ export default function Settings() {
   const handleExport = async () => {
     setBusyBackup(true);
     try {
-      await exportBackup();
-      toast({ title: "Backup exported" });
+      const savedPath = await exportBackup(isNative);
+      toast({
+        title: "Backup exported",
+        description: savedPath ? "Saved to the selected location." : "Backup exported.",
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Unknown error";
+      toast({ title: "Export failed", description: message, variant: "destructive" });
     } finally {
       setBusyBackup(false);
     }
   };
 
-  const handleRestoreClick = () => {
+  const handleRestoreClick = async () => {
+    if (isNative) {
+      try {
+        sessionStorage.setItem("appLockSkipOnce", "1");
+      } catch {
+        // ignore storage errors
+      }
+
+      setBusyBackup(true);
+      try {
+        const picked = await openFileWithPicker({ mimeType: "application/json" });
+        await restoreBackup(picked.data);
+        toast({ title: "Backup restored", description: "Reloading…" });
+        reloadAfterRestore();
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "Unable to open file";
+        toast({ title: "Restore failed", description: message, variant: "destructive" });
+      } finally {
+        setBusyBackup(false);
+      }
+      return;
+    }
+
     if (!fileRef.current) return;
     fileRef.current.value = "";
     fileRef.current.click();
@@ -215,44 +331,30 @@ export default function Settings() {
 
     setBusyBackup(true);
     try {
-      const text = await file.text();
-      // Ask for confirmation before overwriting current data.
-      setPendingRestoreText(text);
-      setPendingRestoreName(file.name);
-      setRestoreDialogOpen(true);
-    } catch (e) {
-      toast({
-        title: "Restore failed",
-        description: e instanceof Error ? e.message : "Unknown error",
-        variant: "destructive",
-      });
-    } finally {
-      setBusyBackup(false);
-    }
-  };
-
-  const confirmRestore = async () => {
-    if (!pendingRestoreText) {
-      setRestoreDialogOpen(false);
-      return;
-    }
-
-    setBusyBackup(true);
-    try {
-      await restoreBackup(pendingRestoreText);
+      let text = await file.text();
+      if (isNative && (!text || !text.trim())) {
+        const fallbackPath = `ExpenseCompass/${file.name}`;
+        const read = await Filesystem.readFile({
+          path: fallbackPath,
+          directory: Directory.Documents,
+          encoding: Encoding.UTF8,
+        });
+        text = read.data;
+      }
+      await restoreBackup(text);
       toast({ title: "Backup restored", description: "Reloading…" });
-      window.location.reload();
+      reloadAfterRestore();
     } catch (e) {
       toast({
         title: "Restore failed",
         description: e instanceof Error ? e.message : "Unknown error",
         variant: "destructive",
       });
-      setRestoreDialogOpen(false);
     } finally {
       setBusyBackup(false);
     }
   };
+
 
   return (
     <PageLayout>
@@ -270,20 +372,22 @@ export default function Settings() {
             <div className="space-y-3">
               <div className="text-sm font-medium text-foreground">Change PIN</div>
               <div className="grid gap-4">
-                <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">Current PIN</div>
-                  <InputOTP maxLength={4} value={currentPin} onChange={setCurrentPin} disabled={!isNative || savingPin}>
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} />
-                      <InputOTPSlot index={1} />
-                      <InputOTPSlot index={2} />
-                      <InputOTPSlot index={3} />
-                    </InputOTPGroup>
-                  </InputOTP>
-                </div>
+                {pinPayload && (
+                  <div className="space-y-2">
+                    <div className="text-xs text-muted-foreground">Current PIN</div>
+                    <InputOTP maxLength={4} value={currentPin} onChange={setCurrentPin} disabled={!isNative || savingPin}>
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                )}
 
                 <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">New PIN</div>
+                  <div className="text-xs text-muted-foreground">{pinPayload ? "New PIN" : "Create PIN"}</div>
                   <InputOTP maxLength={4} value={newPin} onChange={setNewPin} disabled={!isNative || savingPin}>
                     <InputOTPGroup>
                       <InputOTPSlot index={0} />
@@ -295,7 +399,7 @@ export default function Settings() {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">Confirm new PIN</div>
+                  <div className="text-xs text-muted-foreground">Confirm PIN</div>
                   <InputOTP maxLength={4} value={confirmPin} onChange={setConfirmPin} disabled={!isNative || savingPin}>
                     <InputOTPGroup>
                       <InputOTPSlot index={0} />
@@ -306,8 +410,8 @@ export default function Settings() {
                   </InputOTP>
                 </div>
 
-                <Button className="w-full" onClick={() => void handleChangePin()} disabled={!isNative || savingPin}>
-                  Change PIN
+                <Button className="w-full" onClick={() => void handleSavePin()} disabled={!isNative || savingPin}>
+                  {pinPayload ? "Change PIN" : "Create PIN"}
                 </Button>
 
                 {!isNative && (
@@ -325,7 +429,11 @@ export default function Settings() {
                 <div>
                   <div className="text-sm text-foreground">Fingerprint unlock</div>
                   <div className="text-xs text-muted-foreground">
-                    {canUseBiometrics ? "Use device biometrics to unlock" : "Not available on this device"}
+                    {canUseBiometrics
+                      ? "Use device biometrics to unlock"
+                      : biometricReason
+                        ? `Not available: ${biometricReason}`
+                        : "Not available on this device"}
                   </div>
                 </div>
                 <Switch
@@ -333,24 +441,6 @@ export default function Settings() {
                   onCheckedChange={(checked) => void setSetting({ ...settings, fingerprintEnabled: checked })}
                   disabled={!isNative || !canUseBiometrics}
                 />
-              </div>
-
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <div className="text-sm text-foreground">Face unlock</div>
-                  <div className="text-xs text-muted-foreground">
-                    {canUseBiometrics ? "Use device biometrics to unlock" : "Not available on this device"}
-                  </div>
-                </div>
-                <Switch
-                  checked={settings.faceEnabled}
-                  onCheckedChange={(checked) => void setSetting({ ...settings, faceEnabled: checked })}
-                  disabled={!isNative || !canUseBiometrics}
-                />
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                Note: Android biometrics covers fingerprint and face depending on your device.
               </div>
             </div>
           </CardContent>
@@ -366,7 +456,7 @@ export default function Settings() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button className="sm:flex-1" onClick={() => void handleExport()} disabled={busyBackup}>
+              <Button className="sm:flex-1" onClick={handleExport} disabled={busyBackup}>
                 Export backup
               </Button>
               <Button
@@ -392,32 +482,6 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        <AlertDialog
-          open={restoreDialogOpen}
-          onOpenChange={(open) => {
-            setRestoreDialogOpen(open);
-            if (!open) {
-              setPendingRestoreText(null);
-              setPendingRestoreName(null);
-            }
-          }}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Restore backup?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will overwrite your current bills, expenses, and security settings.
-                {pendingRestoreName ? ` File: ${pendingRestoreName}` : ""}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={busyBackup}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => void confirmRestore()} disabled={busyBackup}>
-                Restore
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
     </PageLayout>
   );

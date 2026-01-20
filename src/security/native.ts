@@ -11,8 +11,18 @@ export interface BiometricAuthPlugin {
   verify(options: { title: string; subtitle?: string }): Promise<{ success: boolean }>;
 }
 
+export interface SaveFilePlugin {
+  save(options: { filename: string; mimeType?: string; data: string }): Promise<{ uri: string }>;
+}
+
+export interface OpenFilePlugin {
+  pick(options?: { mimeType?: string }): Promise<{ name: string; data: string }>;
+}
+
 const SecureStore = registerPlugin<SecureStorePlugin>("SecureStore");
 const BiometricAuth = registerPlugin<BiometricAuthPlugin>("BiometricAuth");
+const SaveFile = registerPlugin<SaveFilePlugin>("SaveFile");
+const OpenFile = registerPlugin<OpenFilePlugin>("OpenFile");
 
 export function isNativePlatform(): boolean {
   return Capacitor.isNativePlatform();
@@ -31,7 +41,11 @@ export async function secureGet(key: string): Promise<string | null> {
     const result = await SecureStore.get({ key });
     return result.value;
   } catch {
-    return null;
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -71,6 +85,27 @@ export async function biometricIsAvailable(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export async function biometricAvailabilityDetails(): Promise<{ available: boolean; error?: string }>{
+  if (!isNativePlatform()) return { available: false, error: "Not running on a native device" };
+
+  try {
+    const { available } = await BiometricAuth.isAvailable();
+    return { available };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown biometric error";
+    return { available: false, error: message };
+  }
+}
+
+export async function saveFileWithPicker(options: { filename: string; mimeType?: string; data: string }): Promise<string> {
+  const result = await SaveFile.save(options);
+  return result.uri;
+}
+
+export async function openFileWithPicker(options?: { mimeType?: string }): Promise<{ name: string; data: string }> {
+  return OpenFile.pick(options ?? {});
 }
 
 export async function biometricVerify(title: string, subtitle?: string): Promise<boolean> {

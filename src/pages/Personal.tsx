@@ -26,6 +26,20 @@ export default function Personal() {
     setExpenses((prev) => [newExpense, ...prev]);
   };
 
+  const handleUpdateExpense = (expenseId: string, updates: { category: string; description: string; amount: number; date: string }) => {
+    setExpenses((prev) =>
+      prev.map((expense) =>
+        expense.id === expenseId
+          ? { ...expense, ...updates }
+          : expense,
+      ),
+    );
+  };
+
+  const handleDeleteExpense = (expenseId: string) => {
+    setExpenses((prev) => prev.filter((expense) => expense.id !== expenseId));
+  };
+
   const totalSpent = expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const categoriesCount = new Set(expenses.map(e => e.category)).size;
   const thisMonthExpenses = expenses.filter(e => {
@@ -89,7 +103,11 @@ export default function Personal() {
         {/* Expenses Table */}
         <div className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">Recent Expenses</h2>
-          <ExpenseTable expenses={expenses} />
+          <ExpenseTable
+            expenses={expenses}
+            onUpdateExpense={handleUpdateExpense}
+            onDeleteExpense={handleDeleteExpense}
+          />
         </div>
       </div>
     </PageLayout>

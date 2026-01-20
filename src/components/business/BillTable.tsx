@@ -14,18 +14,25 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { LedgerPrintModal } from './LedgerPrintModal';
+import { Check, Pencil, Trash2, X } from 'lucide-react';
 
 interface BillTableProps {
   bills: Bill[];
   onAddPayment: (billId: string, amount: number, date: string, note?: string) => void;
+  onUpdatePayment: (billId: string, paymentId: string, updates: { amount: number; date: string; note?: string }) => void;
+  onDeletePayment: (billId: string, paymentId: string) => void;
   openBillId?: string | null;
   onOpenBillHandled?: () => void;
 }
 
-export function BillTable({ bills, onAddPayment, openBillId, onOpenBillHandled }: BillTableProps) {
+export function BillTable({ bills, onAddPayment, onUpdatePayment, onDeletePayment, openBillId, onOpenBillHandled }: BillTableProps) {
   const [expandedBillId, setExpandedBillId] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editNote, setEditNote] = useState('');
 
   useEffect(() => {
     if (!openBillId) return;
@@ -54,8 +61,53 @@ export function BillTable({ bills, onAddPayment, openBillId, onOpenBillHandled }
       const next = prev === billId ? null : billId;
       setPaymentAmount('');
       setPaymentDate(new Date().toISOString().split('T')[0]);
+      setEditingPaymentId(null);
       return next;
     });
+  };
+
+  const startEditPayment = (paymentId: string, amount: number, date: string, note?: string) => {
+    setEditingPaymentId(paymentId);
+    setEditAmount(String(amount));
+    setEditDate(date);
+    setEditNote(note ?? '');
+  };
+
+  const cancelEditPayment = () => {
+    setEditingPaymentId(null);
+    setEditAmount('');
+    setEditDate('');
+    setEditNote('');
+  };
+
+  const handleSavePayment = (bill: Bill, paymentId: string, originalAmount: number) => {
+    const amount = Number(editAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast({
+        title: 'Invalid payment amount',
+        description: 'Enter a number greater than 0.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const nextPaid = bill.paid - originalAmount + amount;
+    if (nextPaid > bill.billAmount) {
+      toast({
+        title: 'Overpayment not allowed',
+        description: `Max you can pay is ₹${bill.balance.toLocaleString()}.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    onUpdatePayment(bill.id, paymentId, {
+      amount,
+      date: editDate || new Date().toISOString().split('T')[0],
+      note: editNote || undefined,
+    });
+
+    cancelEditPayment();
   };
 
   const handleAddPaymentSubmit = (bill: Bill) => {
@@ -150,18 +202,78 @@ export function BillTable({ bills, onAddPayment, openBillId, onOpenBillHandled }
                                   return sortedPayments.map((payment) => {
                                     runningTotal += payment.amount;
                                     const fullyPaidAfterThis = runningTotal === bill.billAmount;
+                                    const isEditing = editingPaymentId === payment.id;
                                     return (
                                       <div
                                         key={payment.id}
-                                        className="flex items-center justify-between text-sm bg-card border border-border rounded-lg px-3 py-2"
+                                        className="flex flex-col gap-2 text-sm bg-card border border-border rounded-lg px-3 py-2"
                                       >
-                                        <span className="text-foreground">
-                                          {format(new Date(payment.date), 'MMM d, yyyy')}
-                                        </span>
-                                        <span className="text-muted-foreground">
-                                          Paid ₹{payment.amount.toLocaleString()}
-                                          {fullyPaidAfterThis ? ' (Bill Fully Paid)' : ''}
-                                        </span>
+                                        {isEditing ? (
+                                          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                                            <Input
+                                              type="number"
+                                              min="0.01"
+                                              step="0.01"
+                                              value={editAmount}
+                                              onChange={(e) => setEditAmount(e.target.value)}
+                                            />
+                                            <Input
+                                              type="date"
+                                              value={editDate}
+                                              onChange={(e) => setEditDate(e.target.value)}
+                                            />
+                                            <Input
+                                              type="text"
+                                              placeholder="Note"
+                                              value={editNote}
+                                              onChange={(e) => setEditNote(e.target.value)}
+                                            />
+                                            <div className="flex items-center gap-2 justify-end">
+                                              <Button
+                                                size="sm"
+                                                onClick={() => handleSavePayment(bill, payment.id, payment.amount)}
+                                              >
+                                                <Check className="w-4 h-4" />
+                                              </Button>
+                                              <Button size="sm" variant="secondary" onClick={cancelEditPayment}>
+                                                <X className="w-4 h-4" />
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                            <div>
+                                              <div className="text-foreground">
+                                                {format(new Date(payment.date), 'MMM d, yyyy')}
+                                              </div>
+                                              {payment.note && (
+                                                <div className="text-xs text-muted-foreground">{payment.note}</div>
+                                              )}
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                              <span className="text-muted-foreground">
+                                                Paid ₹{payment.amount.toLocaleString()}
+                                                {fullyPaidAfterThis ? ' (Bill Fully Paid)' : ''}
+                                              </span>
+                                              <div className="flex items-center gap-1">
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  onClick={() => startEditPayment(payment.id, payment.amount, payment.date, payment.note)}
+                                                >
+                                                  <Pencil className="w-4 h-4" />
+                                                </Button>
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  onClick={() => onDeletePayment(bill.id, payment.id)}
+                                                >
+                                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                     );
                                   });

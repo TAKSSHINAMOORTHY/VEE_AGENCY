@@ -100,6 +100,49 @@ export default function Business() {
     );
   };
 
+  const handleUpdatePayment = (
+    billId: string,
+    paymentId: string,
+    updates: { amount: number; date: string; note?: string },
+  ) => {
+    setBills((prev) =>
+      prev.map((bill) => {
+        if (bill.id !== billId) return bill;
+
+        const nextPayments = bill.payments.map((payment) =>
+          payment.id === paymentId
+            ? { ...payment, amount: updates.amount, date: updates.date, note: updates.note }
+            : payment,
+        );
+
+        const nextPaid = nextPayments.reduce((sum, payment) => sum + payment.amount, 0);
+
+        return normalizeBill({
+          ...bill,
+          payments: nextPayments,
+          paid: nextPaid,
+        });
+      }),
+    );
+  };
+
+  const handleDeletePayment = (billId: string, paymentId: string) => {
+    setBills((prev) =>
+      prev.map((bill) => {
+        if (bill.id !== billId) return bill;
+
+        const nextPayments = bill.payments.filter((payment) => payment.id !== paymentId);
+        const nextPaid = nextPayments.reduce((sum, payment) => sum + payment.amount, 0);
+
+        return normalizeBill({
+          ...bill,
+          payments: nextPayments,
+          paid: nextPaid,
+        });
+      }),
+    );
+  };
+
   const handleUpdateBill = (billId: string, updates: { billAmount: number; paidAmount?: number }) => {
     setBills((prev) =>
       prev.map((bill) => {
@@ -185,6 +228,8 @@ export default function Business() {
         <BillTable
           bills={normalizedBills}
           onAddPayment={handleAddPayment}
+          onUpdatePayment={handleUpdatePayment}
+          onDeletePayment={handleDeletePayment}
           openBillId={openBillId}
           onOpenBillHandled={() => setOpenBillId(null)}
         />
