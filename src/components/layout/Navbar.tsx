@@ -1,11 +1,12 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Briefcase, User, BarChart3, Menu, X, Settings, BookOpenText } from 'lucide-react';
+import { LayoutDashboard, Briefcase, User, BarChart3, Menu, X, Settings, BookOpenText, Building2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/business', label: 'Business', icon: Briefcase },
+  { to: '/companies', label: 'Companies', icon: Building2 },
   { to: '/ledger', label: 'Ledger', icon: BookOpenText },
   { to: '/personal', label: 'Personal', icon: User },
   { to: '/reports', label: 'Reports', icon: BarChart3 },

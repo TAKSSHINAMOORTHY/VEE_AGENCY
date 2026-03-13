@@ -9,6 +9,7 @@ import Personal from "./pages/Personal";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Ledger from "./pages/Ledger";
+import Companies from "./pages/Companies";
 import NotFound from "./pages/NotFound";
 import { AppLockGate } from "@/security/AppLockGate";
 
@@ -24,6 +25,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/business" element={<Business />} />
+            <Route path="/companies" element={<Companies />} />
             <Route path="/ledger" element={<Ledger />} />
             <Route path="/personal" element={<Personal />} />
             <Route path="/reports" element={<Reports />} />

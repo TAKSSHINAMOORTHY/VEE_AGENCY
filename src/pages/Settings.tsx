@@ -55,6 +55,12 @@ async function exportBackup(isNative: boolean): Promise<string | null> {
   }
 
   try {
+    data[STORAGE_KEYS.companies] = localStorage.getItem(STORAGE_KEYS.companies);
+  } catch {
+    data[STORAGE_KEYS.companies] = null;
+  }
+
+  try {
     data[STORAGE_KEYS.expenses] = localStorage.getItem(STORAGE_KEYS.expenses);
   } catch {
     data[STORAGE_KEYS.expenses] = null;
@@ -149,6 +155,19 @@ async function restoreBackup(fileText: string): Promise<void> {
       localStorage.removeItem(STORAGE_KEYS.bills);
     } else {
       localStorage.setItem(STORAGE_KEYS.bills, billsValue);
+    }
+  } catch {
+    // ignore local storage errors
+  }
+
+  const companiesValue = Object.prototype.hasOwnProperty.call(data, STORAGE_KEYS.companies)
+    ? data[STORAGE_KEYS.companies]
+    : null;
+  try {
+    if (companiesValue === null || companiesValue === undefined) {
+      localStorage.removeItem(STORAGE_KEYS.companies);
+    } else {
+      localStorage.setItem(STORAGE_KEYS.companies, companiesValue);
     }
   } catch {
     // ignore local storage errors

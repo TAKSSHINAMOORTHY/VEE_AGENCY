@@ -13,7 +13,7 @@ import { Receipt, DollarSign, AlertCircle, CheckCircle } from 'lucide-react';
 function normalizeBill(bill: Bill): Bill {
   const paid = bill.paid;
   const balance = Math.max(0, bill.billAmount - paid);
-  
+
   // Add dueDate if it doesn't exist
   let dueDate = bill.dueDate;
   if (!dueDate) {
@@ -22,7 +22,7 @@ function normalizeBill(bill: Bill): Bill {
     const dueDateObj = new Date(dateCreated.getTime() + 30 * 24 * 60 * 60 * 1000);
     dueDate = dueDateObj.toISOString().split('T')[0];
   }
-  
+
   return {
     ...bill,
     dueDate,
@@ -54,6 +54,7 @@ export default function Business() {
 
   const handleAddBill = (billData: {
     billNo: string;
+    name: string;
     billAmount: number;
     dateCreated: string;
   }) => {

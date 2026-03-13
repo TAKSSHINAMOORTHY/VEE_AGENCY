@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,31 +10,109 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { useLocalStorageState } from '@/hooks/useLocalStorageState';
+import { STORAGE_KEYS } from '@/lib/storageKeys';
+import { createId } from '@/lib/id';
+import { toast } from '@/hooks/use-toast';
+import type { Company } from '@/types/company';
 
 interface AddBillModalProps {
   onAddBill: (bill: {
     billNo: string;
+    name: string;
     billAmount: number;
     dateCreated: string;
   }) => void;
 }
 
 export function AddBillModal({ onAddBill }: AddBillModalProps) {
+  const [companies, setCompanies] = useLocalStorageState<Company[]>(STORAGE_KEYS.companies, []);
   const [open, setOpen] = useState(false);
+  const [companyFocused, setCompanyFocused] = useState(false);
   const [formData, setFormData] = useState({
+    name: '',
     billNo: '',
     billAmount: '',
     dateCreated: new Date().toISOString().split('T')[0],
   });
 
+  const trimmedCompany = formData.name.trim();
+  const filteredCompanies = useMemo(() => {
+    if (!trimmedCompany) return [];
+    const query = trimmedCompany.toLowerCase();
+
+    const startsWithMatches: Company[] = [];
+    const containsMatches: Company[] = [];
+
+    companies.forEach((company) => {
+      const companyName = company.companyName.toLowerCase();
+      const ownerName = company.ownerName.toLowerCase();
+      const companyStartsWith = companyName.startsWith(query);
+      const ownerStartsWith = ownerName.startsWith(query);
+      const companyContains = companyName.includes(query);
+      const ownerContains = ownerName.includes(query);
+
+      if (companyStartsWith || ownerStartsWith) {
+        startsWithMatches.push(company);
+        return;
+      }
+
+      if (companyContains || ownerContains) {
+        containsMatches.push(company);
+      }
+    });
+
+    return [...startsWithMatches, ...containsMatches].slice(0, 8);
+  }, [companies, trimmedCompany]);
+
+  const exactCompanyExists = useMemo(() => {
+    if (!trimmedCompany) return false;
+    const query = trimmedCompany.toLowerCase();
+    return companies.some((company) => company.companyName.trim().toLowerCase() === query);
+  }, [companies, trimmedCompany]);
+
+  const shouldShowSuggestions =
+    companyFocused && Boolean(trimmedCompany) && (filteredCompanies.length > 0 || !exactCompanyExists);
+
+  const handleSelectCompany = (companyName: string) => {
+    setFormData((prev) => ({ ...prev, name: companyName }));
+    setCompanyFocused(false);
+  };
+
+  const handleCreateCompany = () => {
+    if (!trimmedCompany || exactCompanyExists) return;
+
+    const now = new Date().toISOString();
+    const newCompany: Company = {
+      id: createId(),
+      companyName: trimmedCompany,
+      ownerName: '',
+      gstn: '',
+      address: '',
+      phoneNumber: '',
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    setCompanies((prev) => [newCompany, ...prev]);
+    toast({
+      title: 'Company created',
+      description: 'Open Companies page later to add owner/GSTN/address/phone.',
+    });
+    setFormData((prev) => ({ ...prev, name: newCompany.companyName }));
+    setCompanyFocused(false);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onAddBill({
       billNo: formData.billNo,
+      name: formData.name.trim(),
       billAmount: parseFloat(formData.billAmount),
       dateCreated: formData.dateCreated,
     });
     setFormData({
+      name: '',
       billNo: '',
       billAmount: '',
       dateCreated: new Date().toISOString().split('T')[0],
@@ -56,10 +134,60 @@ export function AddBillModal({ onAddBill }: AddBillModalProps) {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="billNo">Deal Name</Label>
+            <Label htmlFor="companyName">Company Name</Label>
+            <div className="relative">
+              <Input
+                id="companyName"
+                placeholder="Type company name"
+                value={formData.name}
+                onFocus={() => setCompanyFocused(true)}
+                onBlur={() => {
+                  setTimeout(() => setCompanyFocused(false), 120);
+                }}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+              />
+
+              {shouldShowSuggestions && (
+                <div className="absolute z-20 mt-1 w-full bg-popover border border-border rounded-md shadow-md overflow-hidden">
+                  {filteredCompanies.length > 0 ? (
+                    filteredCompanies.map((company) => (
+                      <button
+                        key={company.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 hover:bg-accent"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => handleSelectCompany(company.companyName)}
+                      >
+                        <div className="text-sm font-medium">{company.companyName}</div>
+                        {company.ownerName && (
+                          <div className="text-xs text-muted-foreground">Owner: {company.ownerName}</div>
+                        )}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">No matching companies</div>
+                  )}
+
+                  {trimmedCompany && !exactCompanyExists && (
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 text-sm border-t border-border hover:bg-accent font-medium"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={handleCreateCompany}
+                    >
+                      Create company "{trimmedCompany}"
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="billNo">Bill No / Deal Name</Label>
             <Input
               id="billNo"
-              placeholder="Enter deal name"
+              placeholder="Enter bill number or deal name"
               value={formData.billNo}
               onChange={(e) => setFormData({ ...formData, billNo: e.target.value })}
               required

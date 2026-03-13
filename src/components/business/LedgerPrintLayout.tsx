@@ -1,6 +1,8 @@
 import { Bill } from '@/types/expense';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
-import { useRef, useState } from 'react';
+import { format } from 'date-fns';
+import { useMemo, useRef, useState } from 'react';
+import type { Company } from '@/types/company';
+import { STORAGE_KEYS } from '@/lib/storageKeys';
 import '@/styles/print-ledger.css';
 
 interface LedgerPrintLayoutProps {
@@ -19,6 +21,27 @@ export function LedgerPrintLayout({
 }: LedgerPrintLayoutProps) {
   const printRef = useRef<HTMLDivElement>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+
+  const matchedCompany = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const companyQuery = bill.name?.trim().toLowerCase();
+    if (!companyQuery) return null;
+
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEYS.companies);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as Company[];
+      return (
+        parsed.find((company) => company.companyName.trim().toLowerCase() === companyQuery) ?? null
+      );
+    } catch {
+      return null;
+    }
+  }, [bill.name]);
+
+  const clientCompanyName = matchedCompany?.companyName || bill.name || 'Not Specified';
+  const clientCompanyGst = matchedCompany?.gstn || 'Not Specified';
+  const clientCompanyAddress = matchedCompany?.address || 'Not Specified';
 
   const handlePrint = () => {
     setIsPrinting(true);
@@ -93,7 +116,7 @@ export function LedgerPrintLayout({
             padding: 0;
           }
         }
-        
+
         @page {
           size: A4;
           margin: 0.5in;
@@ -118,7 +141,7 @@ export function LedgerPrintLayout({
             <h1 className="text-3xl font-bold text-black">{companyName}</h1>
             <p className="text-sm text-gray-700 mt-2 whitespace-pre-line">{companyAddress}</p>
             <p className="text-sm text-gray-700">{gstNumber}</p>
-          
+
           </div>
         </div>
 
@@ -134,26 +157,36 @@ export function LedgerPrintLayout({
           <div className="border border-black p-4">
             <p className="font-bold text-black mb-2">CLIENT DETAILS:</p>
             <p className="text-black">
-              <span className="font-semibold">Name:</span> {bill.name || 'Not Specified'}
+              <span className="font-semibold">Company Name:</span> {clientCompanyName}
             </p>
             <p className="text-black">
-              <span className="font-semibold">Invoice No:</span> {bill.billNo}
+              <span className="font-semibold">GST Number:</span> {clientCompanyGst}
+            </p>
+            <p className="text-black whitespace-pre-line">
+              <span className="font-semibold">Address:</span> {clientCompanyAddress}
             </p>
             <p className="text-black">
               <span className="font-semibold">Status:</span> <span className="font-bold uppercase">{bill.status}</span>
             </p>
           </div>
-          <div className="border border-black p-4">
-            <p className="font-bold text-black mb-2">DATE RANGE:</p>
-            <p className="text-black">
-              <span className="font-semibold">From:</span> {format(new Date(bill.dateCreated), 'dd-MMM-yyyy')}
-            </p>
-            <p className="text-black">
-              <span className="font-semibold">To:</span> {format(new Date(), 'dd-MMM-yyyy')}
-            </p>
-            <p className="text-black">
-              <span className="font-semibold">Due Date:</span> {format(new Date(bill.dueDate), 'dd-MMM-yyyy')}
-            </p>
+          <div className="space-y-3">
+            <div className="border border-black p-4">
+              <p className="font-bold text-black mb-2">DATE RANGE:</p>
+              <p className="text-black">
+                <span className="font-semibold">From:</span> {format(new Date(bill.dateCreated), 'dd-MMM-yyyy')}
+              </p>
+              <p className="text-black">
+                <span className="font-semibold">To:</span> {format(new Date(), 'dd-MMM-yyyy')}
+              </p>
+              <p className="text-black">
+                <span className="font-semibold">Due Date:</span> {format(new Date(bill.dueDate), 'dd-MMM-yyyy')}
+              </p>
+            </div>
+            <div className="border border-black p-4">
+              <p className="text-black">
+                <span className="font-semibold">Invoice No:</span> {bill.billNo}
+              </p>
+            </div>
           </div>
         </div>
 
