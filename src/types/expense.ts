@@ -2,6 +2,7 @@ export interface Bill {
   id: string;
   billNo: string;
   name?: string;
+  companyId?: string;
   billAmount: number;
   paid: number;
   balance: number;

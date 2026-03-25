@@ -20,17 +20,30 @@ interface AddBillModalProps {
   onAddBill: (bill: {
     billNo: string;
     name: string;
+    companyId?: string;
     billAmount: number;
     dateCreated: string;
   }) => void;
+  presetCompany?: {
+    id?: string;
+    name: string;
+  };
+  lockCompany?: boolean;
+  triggerLabel?: string;
 }
 
-export function AddBillModal({ onAddBill }: AddBillModalProps) {
+export function AddBillModal({
+  onAddBill,
+  presetCompany,
+  lockCompany = false,
+  triggerLabel = 'Add Bill',
+}: AddBillModalProps) {
   const [companies, setCompanies] = useLocalStorageState<Company[]>(STORAGE_KEYS.companies, []);
   const [open, setOpen] = useState(false);
   const [companyFocused, setCompanyFocused] = useState(false);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(presetCompany?.id);
   const [formData, setFormData] = useState({
-    name: '',
+    name: presetCompany?.name ?? '',
     billNo: '',
     billAmount: '',
     dateCreated: new Date().toISOString().split('T')[0],
@@ -75,7 +88,9 @@ export function AddBillModal({ onAddBill }: AddBillModalProps) {
     companyFocused && Boolean(trimmedCompany) && (filteredCompanies.length > 0 || !exactCompanyExists);
 
   const handleSelectCompany = (companyName: string) => {
+    const selectedCompany = companies.find((company) => company.companyName === companyName);
     setFormData((prev) => ({ ...prev, name: companyName }));
+    setSelectedCompanyId(selectedCompany?.id);
     setCompanyFocused(false);
   };
 
@@ -100,32 +115,49 @@ export function AddBillModal({ onAddBill }: AddBillModalProps) {
       description: 'Open Companies page later to add owner/GSTN/address/phone.',
     });
     setFormData((prev) => ({ ...prev, name: newCompany.companyName }));
+    setSelectedCompanyId(newCompany.id);
     setCompanyFocused(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const matchedCompany = companies.find(
+      (company) => company.companyName.trim().toLowerCase() === formData.name.trim().toLowerCase(),
+    );
     onAddBill({
       billNo: formData.billNo,
       name: formData.name.trim(),
+      companyId: selectedCompanyId ?? matchedCompany?.id,
       billAmount: parseFloat(formData.billAmount),
       dateCreated: formData.dateCreated,
     });
     setFormData({
-      name: '',
+      name: presetCompany?.name ?? '',
       billNo: '',
       billAmount: '',
       dateCreated: new Date().toISOString().split('T')[0],
     });
+    setSelectedCompanyId(presetCompany?.id);
     setOpen(false);
   };
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (nextOpen) {
+      setFormData((prev) => ({
+        ...prev,
+        name: presetCompany?.name ?? prev.name,
+      }));
+      setSelectedCompanyId(presetCompany?.id ?? selectedCompanyId);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button className="gap-2">
           <Plus className="w-4 h-4" />
-          Add Bill
+          {triggerLabel}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
@@ -140,15 +172,17 @@ export function AddBillModal({ onAddBill }: AddBillModalProps) {
                 id="companyName"
                 placeholder="Type company name"
                 value={formData.name}
+                disabled={lockCompany}
                 onFocus={() => setCompanyFocused(true)}
                 onBlur={() => {
                   setTimeout(() => setCompanyFocused(false), 120);
                 }}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onInput={() => setSelectedCompanyId(undefined)}
                 required
               />
 
-              {shouldShowSuggestions && (
+              {!lockCompany && shouldShowSuggestions && (
                 <div className="absolute z-20 mt-1 w-full bg-popover border border-border rounded-md shadow-md overflow-hidden">
                   {filteredCompanies.length > 0 ? (
                     filteredCompanies.map((company) => (

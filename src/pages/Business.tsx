@@ -1,198 +1,135 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useLocalStorageState } from '@/hooks/useLocalStorageState';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PageLayout } from '@/components/layout/PageLayout';
-import { BillTable } from '@/components/business/BillTable';
 import { AddBillModal } from '@/components/business/AddBillModal';
 import { SummaryCard } from '@/components/common/SummaryCard';
 import { ExportButtons } from '@/components/common/ExportButtons';
-import { Bill } from '@/types/expense';
+import { useLocalStorageState } from '@/hooks/useLocalStorageState';
+import { useBusinessBills } from '@/hooks/useBusinessBills';
+import { Company } from '@/types/company';
 import { STORAGE_KEYS } from '@/lib/storageKeys';
-import { createId } from '@/lib/id';
-import { Receipt, DollarSign, AlertCircle, CheckCircle } from 'lucide-react';
+import { StatusBadge } from '@/components/common/StatusBadge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Receipt, DollarSign, AlertCircle, CheckCircle, Plus } from 'lucide-react';
 
-function normalizeBill(bill: Bill): Bill {
-  const paid = bill.paid;
-  const balance = Math.max(0, bill.billAmount - paid);
+type CompanyRow = {
+  id: string;
+  companyName: string;
+  ownerName?: string;
+  totalBillAmount: number;
+  totalPaid: number;
+  totalBalance: number;
+  status: 'paid' | 'pending' | 'completed';
+};
 
-  // Add dueDate if it doesn't exist
-  let dueDate = bill.dueDate;
-  if (!dueDate) {
-    const dateCreated = new Date(bill.dateCreated);
-    // Add 30 days correctly by adding milliseconds
-    const dueDateObj = new Date(dateCreated.getTime() + 30 * 24 * 60 * 60 * 1000);
-    dueDate = dueDateObj.toISOString().split('T')[0];
-  }
-
-  return {
-    ...bill,
-    dueDate,
-    balance,
-    status: balance === 0 ? 'paid' : 'pending',
-  };
-}
+const normalizeName = (value: string) => value.trim().toLowerCase();
 
 export default function Business() {
-  const [bills, setBills] = useLocalStorageState<Bill[]>(STORAGE_KEYS.bills, []);
-  const [openBillId, setOpenBillId] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { bills, handleAddBill, totals } = useBusinessBills();
+  const [companies] = useLocalStorageState<Company[]>(STORAGE_KEYS.companies, []);
+  const [search, setSearch] = useState('');
 
-  const normalizedBills = useMemo(() => bills.map(normalizeBill), [bills]);
+  const companyRows = useMemo<CompanyRow[]>(() => {
+    const companyById = new Map(companies.map((c) => [c.id, c]));
+    const companyByName = new Map(companies.map((c) => [normalizeName(c.companyName), c]));
+    const grouped = new Map<string, CompanyRow & { statusSet: Set<string> }>();
 
-  useEffect(() => {
-    // Migrate any legacy statuses/balances from storage.
-    const needsUpdate = bills.some((bill, index) => {
-      const normalized = normalizedBills[index];
-      return (
-        bill.status !== normalized.status ||
-        bill.balance !== normalized.balance
-      );
+    bills.forEach((bill) => {
+      const nameKey = normalizeName(bill.name || 'Unknown Company');
+      const byId = bill.companyId ? companyById.get(bill.companyId) : undefined;
+      const byName = companyByName.get(nameKey);
+      const resolvedCompany = byId ?? byName;
+
+      const key = resolvedCompany?.id ? `id-${resolvedCompany.id}` : `name-${nameKey}`;
+      const row = grouped.get(key) ?? {
+        id: key,
+        companyName: resolvedCompany?.companyName || bill.name || 'Unknown Company',
+        ownerName: resolvedCompany?.ownerName,
+        totalBillAmount: 0,
+        totalPaid: 0,
+        totalBalance: 0,
+        status: 'pending' as const,
+        statusSet: new Set<string>(),
+      };
+
+      row.totalBillAmount += bill.billAmount;
+      row.totalPaid += bill.paid;
+      row.totalBalance += bill.balance;
+      row.statusSet.add(bill.status);
+      grouped.set(key, row);
     });
 
-    if (needsUpdate) {
-      setBills(normalizedBills);
-    }
-  }, [bills, normalizedBills, setBills]);
+    return Array.from(grouped.values())
+      .map((row) => {
+        const statuses = row.statusSet;
+        const hasPending = statuses.has('pending');
+        const hasPaidLike = statuses.has('paid') || statuses.has('completed');
+        let status: CompanyRow['status'] = 'pending';
+        if (hasPending && hasPaidLike) status = 'completed';
+        else if (hasPaidLike && !hasPending) status = 'paid';
 
-  const handleAddBill = (billData: {
-    billNo: string;
-    name: string;
-    billAmount: number;
-    dateCreated: string;
-  }) => {
-    // Calculate due date as 30 days from date created
-    const dateCreated = new Date(billData.dateCreated);
-    // Add 30 days correctly by adding milliseconds
-    const dueDate = new Date(dateCreated.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const dueDateString = dueDate.toISOString().split('T')[0];
-
-    const newBill: Bill = {
-      id: createId(),
-      ...billData,
-      dueDate: dueDateString,
-      paid: 0,
-      balance: billData.billAmount,
-      status: 'pending',
-      payments: [],
-    };
-    setBills((prev) => [newBill, ...prev]);
-    setOpenBillId(newBill.id);
-  };
-
-  const handleAddPayment = (billId: string, amount: number, date: string, note?: string) => {
-    setBills((prev) =>
-      prev.map((bill) => {
-        if (bill.id !== billId) return bill;
-
-        const updated: Bill = {
-          ...bill,
-          paid: bill.paid + amount,
-          payments: [
-            ...bill.payments,
-            {
-              id: createId(),
-              amount,
-              date,
-              note,
-            },
-          ],
+        return {
+          id: row.id,
+          companyName: row.companyName,
+          ownerName: row.ownerName,
+          totalBillAmount: row.totalBillAmount,
+          totalPaid: row.totalPaid,
+          totalBalance: row.totalBalance,
+          status,
         };
+      })
+      .sort((a, b) => a.companyName.localeCompare(b.companyName));
+  }, [bills, companies]);
 
-        return normalizeBill(updated);
-      }),
-    );
-  };
+  const pendingCount = companyRows.filter((row) => row.status !== 'paid').length;
+  const filteredCompanyRows = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return companyRows;
 
-  const handleUpdatePayment = (
-    billId: string,
-    paymentId: string,
-    updates: { amount: number; date: string; note?: string },
-  ) => {
-    setBills((prev) =>
-      prev.map((bill) => {
-        if (bill.id !== billId) return bill;
+    const startsWithMatches: CompanyRow[] = [];
+    const containsMatches: CompanyRow[] = [];
 
-        const nextPayments = bill.payments.map((payment) =>
-          payment.id === paymentId
-            ? { ...payment, amount: updates.amount, date: updates.date, note: updates.note }
-            : payment,
-        );
+    companyRows.forEach((company) => {
+      const companyName = company.companyName.toLowerCase();
+      const ownerName = (company.ownerName || '').toLowerCase();
+      const startsWith = companyName.startsWith(query) || ownerName.startsWith(query);
+      const contains = companyName.includes(query) || ownerName.includes(query);
 
-        const nextPaid = nextPayments.reduce((sum, payment) => sum + payment.amount, 0);
+      if (startsWith) {
+        startsWithMatches.push(company);
+      } else if (contains) {
+        containsMatches.push(company);
+      }
+    });
 
-        return normalizeBill({
-          ...bill,
-          payments: nextPayments,
-          paid: nextPaid,
-        });
-      }),
-    );
-  };
-
-  const handleDeletePayment = (billId: string, paymentId: string) => {
-    setBills((prev) =>
-      prev.map((bill) => {
-        if (bill.id !== billId) return bill;
-
-        const nextPayments = bill.payments.filter((payment) => payment.id !== paymentId);
-        const nextPaid = nextPayments.reduce((sum, payment) => sum + payment.amount, 0);
-
-        return normalizeBill({
-          ...bill,
-          payments: nextPayments,
-          paid: nextPaid,
-        });
-      }),
-    );
-  };
-
-  const handleUpdateBill = (billId: string, updates: { billAmount: number; paidAmount?: number }) => {
-    setBills((prev) =>
-      prev.map((bill) => {
-        if (bill.id !== billId) return bill;
-
-        const nextPaid = updates.paidAmount ?? bill.paid;
-        const today = new Date().toISOString().split('T')[0];
-
-        const updated: Bill = {
-          ...bill,
-          billAmount: updates.billAmount,
-          paid: nextPaid,
-          payments:
-            updates.paidAmount === undefined
-              ? bill.payments
-              : nextPaid === 0
-                ? []
-                : [
-                    {
-                      id: createId(),
-                      amount: nextPaid,
-                      date: today,
-                      note: 'Paid amount set',
-                    },
-                  ],
-        };
-
-        return normalizeBill(updated);
-      }),
-    );
-  };
-
-  const totalBills = bills.reduce((sum, bill) => sum + bill.billAmount, 0);
-  const totalPaid = bills.reduce((sum, bill) => sum + bill.paid, 0);
-  const totalBalance = bills.reduce((sum, bill) => sum + bill.balance, 0);
-  const paidCount = bills.filter((bill) => bill.status !== 'pending').length;
-  const pendingCount = bills.filter(bill => bill.status === 'pending').length;
+    return [...startsWithMatches, ...containsMatches];
+  }, [companyRows, search]);
 
   return (
     <PageLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 text-[0.95rem]">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Business Bills</h1>
-            <p className="text-muted-foreground">Track and manage your business expenses</p>
+            <h1 className="text-xl font-bold text-foreground">Business Bills</h1>
+            <p className="text-sm text-muted-foreground">Track and manage your business expenses</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <ExportButtons />
+            <Button className="gap-2" onClick={() => navigate('/companies')}>
+              <Plus className="w-4 h-4" />
+              Add Company
+            </Button>
             <AddBillModal onAddBill={handleAddBill} />
           </div>
         </div>
@@ -201,39 +138,82 @@ export default function Business() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <SummaryCard
             title="Total Bills"
-            value={`₹${totalBills.toLocaleString()}`}
+            value={`₹${totals.totalBills.toLocaleString()}`}
             icon={<Receipt className="w-5 h-5 text-primary" />}
             subtitle={`${bills.length} bills`}
           />
           <SummaryCard
             title="Total Paid"
-            value={`₹${totalPaid.toLocaleString()}`}
+            value={`₹${totals.totalPaid.toLocaleString()}`}
             icon={<DollarSign className="w-5 h-5 text-primary" />}
-            subtitle={`${paidCount} paid`}
+            subtitle={`${totals.paidCount} paid`}
           />
           <SummaryCard
             title="Outstanding"
-            value={`₹${totalBalance.toLocaleString()}`}
+            value={`₹${totals.totalBalance.toLocaleString()}`}
             icon={<AlertCircle className="w-5 h-5 text-destructive" />}
-            subtitle={`${pendingCount} pending`}
+            subtitle={`${pendingCount} companies pending`}
           />
           <SummaryCard
             title="Completion Rate"
-            value={`${bills.length ? Math.round((paidCount / bills.length) * 100) : 0}%`}
+            value={`${companyRows.length ? Math.round(((companyRows.length - pendingCount) / companyRows.length) * 100) : 0}%`}
             icon={<CheckCircle className="w-5 h-5 text-primary" />}
-            subtitle="Bills paid"
+            subtitle="Companies settled"
           />
         </div>
 
-        {/* Bills Table */}
-        <BillTable
-          bills={normalizedBills}
-          onAddPayment={handleAddPayment}
-          onUpdatePayment={handleUpdatePayment}
-          onDeletePayment={handleDeletePayment}
-          openBillId={openBillId}
-          onOpenBillHandled={() => setOpenBillId(null)}
-        />
+        <div className="max-w-md">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by company or owner"
+            aria-label="Search companies"
+          />
+        </div>
+
+        <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-accent/30">
+                  <TableHead className="font-semibold">Company Name</TableHead>
+                  <TableHead className="font-semibold">Owner Name</TableHead>
+                  <TableHead className="font-semibold text-right">Total Bill Amount</TableHead>
+                  <TableHead className="font-semibold text-right">Total Paid</TableHead>
+                  <TableHead className="font-semibold text-right">Outstanding Balance</TableHead>
+                  <TableHead className="font-semibold">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredCompanyRows.map((company) => (
+                  <TableRow
+                    key={company.id}
+                    className="hover:bg-accent/20 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/business/company/${encodeURIComponent(company.id)}`)}
+                  >
+                    <TableCell className="font-medium">{company.companyName}</TableCell>
+                    <TableCell>{company.ownerName || '-'}</TableCell>
+                    <TableCell className="text-right font-semibold">₹{company.totalBillAmount.toLocaleString()}</TableCell>
+                    <TableCell className="text-right text-primary font-medium">₹{company.totalPaid.toLocaleString()}</TableCell>
+                    <TableCell className="text-right text-destructive font-medium">₹{company.totalBalance.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={company.status} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredCompanyRows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      {companyRows.length === 0
+                        ? 'No company bills found. Create your first bill to get started.'
+                        : 'No companies found'}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </div>
     </PageLayout>
   );

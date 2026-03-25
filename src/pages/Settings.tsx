@@ -28,6 +28,15 @@ type BackupPayloadV1 = {
   data: Record<string, string | null>;
 };
 
+const LEGACY_LEDGER_KEYS = [
+  "textile_company_name",
+  "textile_company_address",
+  "textile_gst_number",
+  "textile_bank_details",
+] as const;
+
+const SECURE_BACKUP_KEYS = [STORAGE_KEYS.appLockSettings, STORAGE_KEYS.appLockPin] as const;
+
 function nowStamp(): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -48,22 +57,37 @@ function downloadJson(filename: string, obj: unknown) {
 
 async function exportBackup(isNative: boolean): Promise<string | null> {
   const data: Record<string, string | null> = {};
+
   try {
-    data[STORAGE_KEYS.bills] = localStorage.getItem(STORAGE_KEYS.bills);
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (key.startsWith("expense-compass:")) {
+        data[key] = localStorage.getItem(key);
+      }
+    }
   } catch {
+    // ignore local storage read errors
+  }
+
+  // Ensure core keys are always represented even if absent.
+  if (!Object.prototype.hasOwnProperty.call(data, STORAGE_KEYS.bills)) {
     data[STORAGE_KEYS.bills] = null;
   }
-
-  try {
-    data[STORAGE_KEYS.companies] = localStorage.getItem(STORAGE_KEYS.companies);
-  } catch {
+  if (!Object.prototype.hasOwnProperty.call(data, STORAGE_KEYS.companies)) {
     data[STORAGE_KEYS.companies] = null;
   }
-
-  try {
-    data[STORAGE_KEYS.expenses] = localStorage.getItem(STORAGE_KEYS.expenses);
-  } catch {
+  if (!Object.prototype.hasOwnProperty.call(data, STORAGE_KEYS.expenses)) {
     data[STORAGE_KEYS.expenses] = null;
+  }
+
+  // Include legacy ledger company-profile details used outside STORAGE_KEYS.
+  for (const key of LEGACY_LEDGER_KEYS) {
+    try {
+      data[key] = localStorage.getItem(key);
+    } catch {
+      data[key] = null;
+    }
   }
 
   data[STORAGE_KEYS.appLockSettings] = await secureGet(STORAGE_KEYS.appLockSettings);
@@ -147,6 +171,22 @@ async function restoreBackup(fileText: string): Promise<void> {
 
   const data = parsed.data;
 
+  // Restore all app-scoped localStorage keys for forward compatibility.
+  for (const [key, value] of Object.entries(data)) {
+    if (!key.startsWith("expense-compass:")) continue;
+    if ((SECURE_BACKUP_KEYS as readonly string[]).includes(key)) continue;
+
+    try {
+      if (value === null || value === undefined) {
+        localStorage.removeItem(key);
+      } else {
+        localStorage.setItem(key, value);
+      }
+    } catch {
+      // ignore local storage errors
+    }
+  }
+
   const billsValue = Object.prototype.hasOwnProperty.call(data, STORAGE_KEYS.bills)
     ? data[STORAGE_KEYS.bills]
     : null;
@@ -184,6 +224,19 @@ async function restoreBackup(fileText: string): Promise<void> {
     }
   } catch {
     // ignore local storage errors
+  }
+
+  for (const key of LEGACY_LEDGER_KEYS) {
+    const value = Object.prototype.hasOwnProperty.call(data, key) ? data[key] : null;
+    try {
+      if (value === null || value === undefined) {
+        localStorage.removeItem(key);
+      } else {
+        localStorage.setItem(key, value);
+      }
+    } catch {
+      // ignore local storage errors
+    }
   }
 
   const lockSettingsValue = Object.prototype.hasOwnProperty.call(data, STORAGE_KEYS.appLockSettings)
@@ -471,7 +524,7 @@ export default function Settings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="text-sm text-muted-foreground">
-              Export or restore your data (bills, expenses, and security settings).
+              Export or restore your full app data (bills, companies, expenses, ledger company details, and security settings).
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
