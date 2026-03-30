@@ -1,0 +1,39 @@
+{
+  "name": "vee-agency-windows",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Windows desktop wrapper for VEE Agency",
+  "main": "main.js",
+  "scripts": {
+    "web:build": "npm --prefix .. run build",
+    "web:copy": "node scripts/copy-web-dist.mjs",
+    "prepare:web": "npm run web:build && npm run web:copy",
+    "start": "npm run prepare:web && electron .",
+    "dist:win": "npm run prepare:web && electron-builder --win portable --x64"
+  },
+  "devDependencies": {
+    "electron": "^37.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.veeagency.desktop",
+    "productName": "VEE Agency",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "web-dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable"
+        }
+      ],
+      "artifactName": "VEE-Agency-v1.exe"
+    }
+  }
+}
