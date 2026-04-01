@@ -1,8 +1,10 @@
+import { useMemo, useState } from 'react';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { ExportButtons } from '@/components/common/ExportButtons';
 import { useLocalStorageState } from '@/hooks/useLocalStorageState';
 import { STORAGE_KEYS } from '@/lib/storageKeys';
-import { Bill, Expense } from '@/types/expense';
+import { Expense } from '@/types/expense';
+import { useBusinessBills } from '@/hooks/useBusinessBills';
 import {
   BarChart,
   Bar,
@@ -16,20 +18,67 @@ import {
   Cell,
   Legend
 } from 'recharts';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+type ReportView = 'weekly' | 'monthly' | 'yearly';
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export default function Reports() {
-  const [bills] = useLocalStorageState<Bill[]>(STORAGE_KEYS.bills, []);
+  const { bills } = useBusinessBills();
   const [expenses] = useLocalStorageState<Expense[]>(STORAGE_KEYS.expenses, []);
 
-  // Business data for chart
-    const billsData = bills.map(bill => {
-      const label = bill.name?.trim() ? bill.name : bill.billNo;
-      return {
-        name: label.length > 15 ? label.substring(0, 15) + '...' : label,
-        paid: bill.paid,
-        balance: bill.balance,
-      };
+  const today = new Date();
+  const [reportView, setReportView] = useState<ReportView>('monthly');
+  const [selectedMonth, setSelectedMonth] = useState(String(today.getMonth() + 1));
+  const [selectedYear, setSelectedYear] = useState(String(today.getFullYear()));
+
+  const availableYears = useMemo(() => {
+    const years = new Set<number>([today.getFullYear()]);
+    bills.forEach((bill) => {
+      const date = new Date(bill.createdDate || bill.dateCreated);
+      if (!Number.isNaN(date.getTime())) years.add(date.getFullYear());
     });
+    return Array.from(years).sort((a, b) => b - a);
+  }, [bills, today]);
+
+  const filteredBills = useMemo(() => {
+    const year = Number(selectedYear);
+    const month = Number(selectedMonth);
+
+    return bills.filter((bill) => {
+      const date = new Date(bill.createdDate || bill.dateCreated);
+      if (Number.isNaN(date.getTime())) return false;
+      if (date.getFullYear() !== year) return false;
+      if (reportView === 'yearly') return true;
+      return date.getMonth() + 1 === month;
+    });
+  }, [bills, reportView, selectedMonth, selectedYear]);
+
+  const filteredPaid = filteredBills.reduce((sum, bill) => sum + bill.totalDebit, 0);
+  const filteredBalance = filteredBills.reduce((sum, bill) => sum + bill.balance, 0);
+
+  const paidBalanceChartData = useMemo(
+    () => [
+      {
+        metric: 'Paid',
+        amount: filteredPaid,
+        color: 'hsl(var(--primary))',
+      },
+      {
+        metric: 'Balance',
+        amount: filteredBalance,
+        color: 'hsl(var(--destructive))',
+      },
+    ],
+    [filteredPaid, filteredBalance],
+  );
 
   // Personal expenses by category
   const expensesByCategory = expenses.reduce((acc, expense) => {
@@ -53,8 +102,8 @@ export default function Reports() {
     'hsl(var(--muted))',
   ];
 
-  const totalBillAmount = bills.reduce((sum, bill) => sum + bill.billAmount, 0);
-  const totalPaid = bills.reduce((sum, bill) => sum + bill.paid, 0);
+  const totalBillAmount = bills.reduce((sum, bill) => sum + bill.totalAmount, 0);
+  const totalPaid = bills.reduce((sum, bill) => sum + bill.totalDebit, 0);
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
 
   return (
@@ -89,20 +138,79 @@ export default function Reports() {
         <section className="space-y-6">
           <div>
             <h2 className="text-xl font-semibold text-foreground">Business Reports</h2>
-            <p className="text-sm text-muted-foreground">Business bills summary and totals.</p>
+            <p className="text-sm text-muted-foreground">Paid and Balance reports with period filters.</p>
           </div>
+
           <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
-            <h3 className="font-semibold text-foreground mb-4">Business Bills Overview</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">View</p>
+                <Select value={reportView} onValueChange={(value) => setReportView(value as ReportView)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select view" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="yearly">Yearly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Month</p>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger disabled={reportView === 'yearly'}>
+                    <SelectValue placeholder="Select month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTH_NAMES.map((monthName, index) => (
+                      <SelectItem key={monthName} value={String(index + 1)}>
+                        {monthName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Year</p>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map((year) => (
+                      <SelectItem key={year} value={String(year)}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+              <div className="bg-accent/30 rounded-lg p-4">
+                <p className="text-sm text-muted-foreground">Paid</p>
+                <p className="text-2xl font-bold text-primary">₹{filteredPaid.toLocaleString()}</p>
+              </div>
+              <div className="bg-accent/30 rounded-lg p-4">
+                <p className="text-sm text-muted-foreground">Balance</p>
+                <p className="text-2xl font-bold text-destructive">₹{filteredBalance.toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+            <h3 className="font-semibold text-foreground mb-4">Paid vs Balance</h3>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={billsData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                <BarChart data={paidBalanceChartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis
-                    dataKey="name"
+                    dataKey="metric"
                     tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={60}
                   />
                   <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
                   <Tooltip
@@ -112,28 +220,15 @@ export default function Reports() {
                       borderRadius: '8px',
                     }}
                     labelStyle={{ color: 'hsl(var(--foreground))' }}
+                    formatter={(value: number) => `₹${value.toLocaleString()}`}
                   />
-                  <Bar dataKey="paid" fill="hsl(var(--primary))" name="Paid" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="balance" fill="hsl(var(--destructive))" name="Balance" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="amount" name="Amount" radius={[6, 6, 0, 0]}>
+                    {paidBalanceChartData.map((entry) => (
+                      <Cell key={entry.metric} fill={entry.color} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
-            </div>
-          </div>
-          <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
-            <h3 className="font-semibold text-foreground mb-4">Business Summary</h3>
-            <div className="space-y-3">
-              {bills.map((bill) => (
-                <div key={bill.id} className="flex justify-between items-center p-3 bg-accent/30 rounded-lg">
-                  <div>
-                    <p className="font-medium text-foreground">{bill.name ?? bill.billNo}</p>
-                    <p className="text-xs text-muted-foreground">{bill.billNo}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-foreground">₹{bill.billAmount.toLocaleString()}</p>
-                    <p className="text-xs text-primary">Paid: ₹{bill.paid.toLocaleString()}</p>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </section>

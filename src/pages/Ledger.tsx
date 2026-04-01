@@ -1,8 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocalStorageState } from '@/hooks/useLocalStorageState';
 import { PageLayout } from '@/components/layout/PageLayout';
-import { Bill } from '@/types/expense';
-import { STORAGE_KEYS } from '@/lib/storageKeys';
 import { LedgerPrintLayout } from '@/components/business/LedgerPrintLayout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -15,10 +12,11 @@ import {
 } from '@/components/ui/select';
 import { ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useBusinessBills } from '@/hooks/useBusinessBills';
 
 export default function LedgerPage() {
   const navigate = useNavigate();
-  const [bills] = useLocalStorageState<Bill[]>(STORAGE_KEYS.bills, []);
+  const { bills } = useBusinessBills();
   const [selectedBillId, setSelectedBillId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState('TEXTILE SOLUTIONS PRIVATE LIMITED');
   const [companyAddress, setCompanyAddress] = useState(

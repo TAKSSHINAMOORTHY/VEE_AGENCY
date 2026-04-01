@@ -96,11 +96,31 @@ export default function Companies() {
 
     if (editingId) {
       setCompanies((prev) =>
-        prev.map((company) => (company.id === editingId ? { ...company, ...payload } : company)),
+        prev.map((company) =>
+          company.id === editingId
+            ? {
+                ...company,
+                ...payload,
+                name: payload.companyName,
+              }
+            : company,
+        ),
       );
       toast({ title: 'Company updated' });
     } else {
-      setCompanies((prev) => [{ id: createId(), createdAt: now, ...payload }, ...prev]);
+      setCompanies((prev) => [
+        {
+          id: createId(),
+          name: payload.companyName,
+          createdAt: now,
+          totalCredit: 0,
+          totalDebit: 0,
+          balance: 0,
+          bills: [],
+          ...payload,
+        },
+        ...prev,
+      ]);
       toast({ title: 'Company created' });
     }
 

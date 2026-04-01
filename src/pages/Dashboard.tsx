@@ -2,7 +2,8 @@ import { PageLayout } from '@/components/layout/PageLayout';
 import { SummaryCard } from '@/components/common/SummaryCard';
 import { useLocalStorageState } from '@/hooks/useLocalStorageState';
 import { STORAGE_KEYS } from '@/lib/storageKeys';
-import { Bill, Expense } from '@/types/expense';
+import { Expense } from '@/types/expense';
+import { useBusinessBills } from '@/hooks/useBusinessBills';
 import {
   Briefcase,
   User,
@@ -17,7 +18,7 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { format } from 'date-fns';
 
 export default function Dashboard() {
-  const [bills] = useLocalStorageState<Bill[]>(STORAGE_KEYS.bills, []);
+  const { bills } = useBusinessBills();
   const [expenses] = useLocalStorageState<Expense[]>(STORAGE_KEYS.expenses, []);
 
   const totalBillAmount = bills.reduce((sum, bill) => sum + bill.billAmount, 0);

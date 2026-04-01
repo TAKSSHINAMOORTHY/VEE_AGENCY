@@ -2,14 +2,15 @@
 
 ## 1. Design Overview
 
-VEE Agency is designed as a calm, practical financial workspace where clarity matters more than visual noise. The interface is intentionally structured to support frequent, repetitive business tasks such as tracking bills, checking balances, creating statements, and reviewing spending. Instead of trying to look decorative, the product design emphasizes confidence, readability, and operational speed.
+VEE Agency is designed as a calm, practical financial workspace where clarity matters more than visual noise. The interface is intentionally structured to support frequent, repetitive business tasks such as tracking bills, checking balances, recording payments, generating statements, and reviewing spending. Instead of trying to look decorative, the product design emphasizes confidence, readability, and operational speed.
 
-At a high level, the design combines two complementary personalities:
+At a high level, the design combines three complementary personalities:
 
 1. Interactive workspace design for day-to-day data entry and monitoring.
 2. Formal print-document design for ledger output and business communication.
+3. Mobile-first quick-navigation design for fast, repeat actions on Android.
 
-This dual character is one of the strongest design outcomes in the project. On screen, users get lightweight cards, compact tables, and direct actions. On paper, they get structured, high-contrast, professional statement layouts with clear accounting semantics.
+This multi-mode character is one of the strongest design outcomes in the project. On screen, users get lightweight cards, compact tables, and direct actions. On mobile, they get icon-first quick navigation and thumb-friendly targets. On paper, they get structured, high-contrast, professional statement layouts with clear accounting semantics.
 
 ---
 
@@ -115,6 +116,8 @@ This structure avoids hidden complexity and reduces decision effort.
 2. Inactive links remain visible but calm.
 3. Hover states communicate immediate affordance.
 4. Mobile menu opens and closes predictably.
+5. Desktop quick-nav keeps high-frequency destinations one click away.
+6. Mobile bottom quick-nav keeps high-frequency destinations one tap away.
 
 ### 7.3 Why It Works
 
@@ -130,6 +133,7 @@ The mobile navigation pattern keeps the same information architecture while chan
 1. Compact toggle entry.
 2. Vertical link stack for thumb-friendly tapping.
 3. Auto-close behavior on route change.
+4. Persistent bottom quick-nav for repeated daily loops.
 
 This preserves familiarity while respecting limited screen space.
 
@@ -375,3 +379,93 @@ These are incremental improvements, not structural redesign requirements.
 VEE Agency demonstrates a strong functional design mindset. It prioritizes clarity, consistency, and operational flow over decoration, which is exactly what this category of product needs. The interface feels deliberate, dependable, and efficient for real financial tasks. The navigation framework is especially effective, and the print-ledger design provides real business value beyond typical dashboard applications.
 
 As a design system, the project is already solid and production-friendly. With small refinements, it can become an exemplary model of practical financial UI design for both screen and document workflows.
+
+---
+
+## 23. End-to-End Operational Flow (Updated)
+
+This section defines the practical user flow across the current implementation, from secure entry to reporting and backup.
+
+### 23.1 Flow A: Secure Entry and Session Start
+
+1. User opens the app.
+2. App lock gate appears when lock is enabled.
+3. User unlocks with PIN or biometrics.
+4. User lands on Dashboard with current business and expense summaries.
+
+### 23.2 Flow B: Daily Business Billing Cycle
+
+1. User opens Business.
+2. User adds a company (if needed) and creates bill entries.
+3. User reviews table status (paid, pending, completed).
+4. User opens company detail to continue transaction handling.
+
+### 23.3 Flow C: Company Reconciliation Loop
+
+1. User selects a company row from Business.
+2. User adds bill-linked or direct transactions.
+3. User reviews bill-level payment history.
+4. User updates or removes incorrect payment entries.
+5. System recalculates paid and balance totals.
+
+### 23.4 Flow D: Ledger and Document Output
+
+1. User navigates to Ledger.
+2. User selects bill context.
+3. User verifies print layout fields (header, GST, bank details, totals).
+4. User prints statement or saves a document copy.
+
+### 23.5 Flow E: Personal and Reporting Review
+
+1. User opens Personal to log or review expense entries.
+2. User opens Reports for business and personal trend visibility.
+3. User uses chart plus text summaries for quick and exact interpretation.
+
+### 23.6 Flow F: Data Protection and Recovery
+
+1. User opens Settings.
+2. User configures fingerprint and PIN behavior.
+3. User exports encrypted backup payload.
+4. User restores backup when moving devices or recovering records.
+
+### 23.7 Flow Quality Notes
+
+1. The flow is intentionally short, repetitive, and predictable.
+2. Navigation continuity reduces context switching between modules.
+3. Core finance actions can be completed from mobile without changing the mental model.
+4. Print and backup are treated as primary flows, not optional extras.
+
+### 23.8 Visual Flow Diagram: Navigation and Module Movement
+
+```mermaid
+flowchart LR
+	A[Secure Unlock] --> B[Dashboard]
+	B --> C[Business]
+	B --> D[Personal]
+	B --> E[Reports]
+	B --> F[Ledger]
+	B --> G[Settings]
+	C --> H[Company Detail]
+	H --> I[Payments and Reconciliation]
+	I --> E
+	I --> F
+	D --> E
+	G --> J[Backup Export and Restore]
+	G --> K[PIN and Biometric Control]
+```
+
+### 23.9 Visual Flow Diagram: Daily Operational Cycle
+
+```mermaid
+flowchart TD
+	S1[Start Day] --> S2[Unlock App]
+	S2 --> S3[Open Business]
+	S3 --> S4[Create or Update Bill]
+	S4 --> S5[Collect Payment]
+	S5 --> S6[Recalculate Balance and Status]
+	S6 --> S7[Review Dashboard and Reports]
+	S7 --> S8[Generate Ledger Statement]
+	S8 --> S9[Open Settings]
+	S9 --> S10[Run Backup]
+	S10 --> S11[End Day]
+```

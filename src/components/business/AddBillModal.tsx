@@ -30,6 +30,8 @@ interface AddBillModalProps {
   };
   lockCompany?: boolean;
   triggerLabel?: string;
+  triggerClassName?: string;
+  triggerIconOnly?: boolean;
 }
 
 export function AddBillModal({
@@ -37,6 +39,8 @@ export function AddBillModal({
   presetCompany,
   lockCompany = false,
   triggerLabel = 'Add Bill',
+  triggerClassName,
+  triggerIconOnly = false,
 }: AddBillModalProps) {
   const [companies, setCompanies] = useLocalStorageState<Company[]>(STORAGE_KEYS.companies, []);
   const [open, setOpen] = useState(false);
@@ -100,6 +104,7 @@ export function AddBillModal({
     const now = new Date().toISOString();
     const newCompany: Company = {
       id: createId(),
+      name: trimmedCompany,
       companyName: trimmedCompany,
       ownerName: '',
       gstn: '',
@@ -107,6 +112,10 @@ export function AddBillModal({
       phoneNumber: '',
       createdAt: now,
       updatedAt: now,
+      totalCredit: 0,
+      totalDebit: 0,
+      balance: 0,
+      bills: [],
     };
 
     setCompanies((prev) => [newCompany, ...prev]);
@@ -155,9 +164,9 @@ export function AddBillModal({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button className="gap-2">
+        <Button className={triggerClassName || 'gap-2'} aria-label={triggerLabel}>
           <Plus className="w-4 h-4" />
-          {triggerLabel}
+          {!triggerIconOnly ? triggerLabel : <span className="sr-only">{triggerLabel}</span>}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
