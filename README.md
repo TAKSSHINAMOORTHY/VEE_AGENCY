@@ -117,7 +117,9 @@ The output executable is created in `windows/release/VEE-Agency-v1.exe`.
 
 ## Credits
 
-Built and maintained by TAKSSHINAMOORTHY.
+**Taksshinamoorthy VT**  
+**taksshinamoorthy@gmail.com**  
+**6380332692**
 
 ## Notes
 
